@@ -341,28 +341,20 @@ select:focus {
    ========================================= */
 
 button {
-    background: #2864e6;
-
-    color: white;
-
+    background: #075fce;
+    color: #ffffff !important;
     border: none;
-
     padding: 12px 20px;
-
     border-radius: 8px;
-
     font-size: 14px;
-
-    font-weight: 600;
-
+    font-weight: 700;
     cursor: pointer;
-
     transition: 0.2s ease;
 }
 
 button:hover {
-    background: #1d4ed8;
-
+    background: #064da6;
+    color: #ffffff !important;
     transform: translateY(-1px);
 }
 

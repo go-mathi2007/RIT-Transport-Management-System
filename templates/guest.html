@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIT Transport – Visitor Portal & Bus Routes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
+    <style>
+        :root {
+            --primary: #075fce;
+            --primary-dark: #064da6;
+            --primary-light: #e8f2ff;
+            --dark: #082d5c;
+            --radius-md: 14px;
+        }
+
+        .guest-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .morning-bus-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .morning-bus-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+    <div class="topbar-content">
+        <div class="brand portal-brand">
+            <div class="portal-logo-wrap">
+                <img src="{{ url_for('static', filename='rit-logo.png') }}" alt="RIT" class="portal-logo">
+            </div>
+            <div class="portal-brand-text">
+                <h1>BUSMATE</h1>
+                <p>RIT TRANSPORT &bull; VISITOR PORTAL</p>
+            </div>
+        </div>
+
+        <div class="portal-actions">
+            <span class="guest-badge">👋 Visitor Mode</span>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+
+    <!-- WELCOME CARD -->
+    <section class="welcome-card">
+        <h2>Welcome to RIT Transport – Guest Access 🚌</h2>
+        <p>Explore all official Rajalakshmi Institute of Technology campus bus routes, active morning schedules, boarding points, evening return schedules, and real-time live bus tracking. Designed for new joiners, guests, and campus visitors.</p>
+    </section>
+
+    <!-- PORTAL GRID -->
+    <div class="portal-grid">
+
+        <!-- =================================================
+             1. MORNING BUSES
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">🌅</span>
+                <span class="box-title">Morning Buses</span>
+                <span class="box-subtitle">Active morning routes & pickup timings</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>🌅 Active Morning Buses</h3>
+                <p>All currently active morning campus buses with complete route information and boarding stop timings.</p>
+
+                <button class="primary-btn full-btn" onclick="loadMorningBuses()" style="margin-bottom:16px;">
+                    🔄 Refresh Morning Buses
+                </button>
+
+                <div class="search-box" style="margin-bottom:14px;">
+                    <input type="text" id="morningBusSearchInput" placeholder="🔍 Search bus number (e.g. R10) or route name..." oninput="filterMorningBuses(this.value)">
+                </div>
+                <div id="morningBusListContainer" class="route-list">
+                    <div style="text-align:center; padding:20px; color:#64748b;">Loading morning bus schedules...</div>
+                </div>
+            </div>
+        </details>
+
+        <!-- =================================================
+             2. BUS ROUTES
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">🚌</span>
+                <span class="box-title">Bus Routes</span>
+                <span class="box-subtitle">View all routes & boarding stops</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>🚌 RIT Bus Routes</h3>
+                <p>Explore all available college bus routes and complete stop listings with morning pickup times.</p>
+                <div id="routeList" class="route-list"></div>
+            </div>
+        </details>
+
+        <!-- =================================================
+             3. BOARDING POINT SEARCH
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">📍</span>
+                <span class="box-title">Boarding Point</span>
+                <span class="box-subtitle">Find which bus serves your location</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>📍 Search Bus by Boarding Point</h3>
+                <p>Enter your pickup stop or neighbourhood name to find which bus operates through your location.</p>
+
+                <div class="search-box">
+                    <input type="text" id="boardingPoint" placeholder="Example: Toll Gate, Porur, Guindy, Tambaram..." onkeydown="if(event.key==='Enter') searchBoardingPoint()">
+                    <button id="searchBusButton" class="primary-btn" onclick="searchBoardingPoint()">Search Bus</button>
+                </div>
+
+                <div id="searchResults" class="route-list"></div>
+            </div>
+        </details>
+
+        <!-- =================================================
+             4. RETURN BUS
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">🔄</span>
+                <span class="box-title">Return Bus</span>
+                <span class="box-subtitle">Evening buses & departure times</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>🌆 Evening Return Buses</h3>
+                <div class="info-box" style="margin-bottom:16px;">
+                    🕐 Standard campus return departure: <strong id="defaultReturnTime">{{ default_return_time or '3:50 PM' }}</strong>
+                </div>
+
+                <button class="primary-btn full-btn" onclick="loadReturnBuses()" style="margin-bottom:16px;">
+                    🔄 Refresh Return Schedule
+                </button>
+
+                <div class="search-box" style="margin-bottom:14px;">
+                    <input type="text" id="returnBusSearchInput" placeholder="🔍 Search return bus number (e.g. R10) or route name..." oninput="filterReturnBuses(this.value)">
+                </div>
+                <div id="returnBusList" class="route-list"></div>
+            </div>
+        </details>
+
+        <!-- =================================================
+             5. LIVE BUS TRACKING
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">📡</span>
+                <span class="box-title">Live Bus Tracking</span>
+                <span class="box-subtitle">Track operational bus locations</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>📍 Live Bus Tracking</h3>
+                <p>Select any college bus to view real-time operational location, next stop, and live trip status.</p>
+
+                <div class="search-box">
+                    <select id="liveBusNumber" aria-label="Select bus to track" onchange="showLiveBus()">
+                        <option value="">Loading buses...</option>
+                    </select>
+                    <button class="primary-btn" onclick="showLiveBus()">Track Bus</button>
+                </div>
+
+                <div id="liveBusResult"></div>
+                <div id="selectedBusStatus" class="selected-bus-status" aria-live="polite"></div>
+            </div>
+        </details>
+
+        <!-- =================================================
+             6. CAMPUS NOTICES & ANNOUNCEMENTS (FEATURE 3)
+        ================================================== -->
+        <details class="portal-box" name="guestPortal">
+            <summary>
+                <span class="box-icon">📢</span>
+                <span class="box-title">Transit Notices</span>
+                <span class="box-subtitle">Official announcements & visitor updates</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>📢 Official Campus Transit Notices</h3>
+                <p>Public announcements, service updates, and visitor transit guidelines.</p>
+
+                <button class="primary-btn full-btn" onclick="loadVisitorNotices()" style="margin-bottom:16px;">
+                    🔄 Refresh Notices
+                </button>
+
+                <div id="visitorNoticesList" class="route-list">
+                    <div style="text-align:center; padding:20px; color:#64748b;">Loading notices...</div>
+                </div>
+            </div>
+        </details>
+
+    </div>
+
+</main>
+
+<!-- SHARED APP JAVASCRIPT -->
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+
+<script>
+// =========================================================
+// GUEST PORTAL JAVASCRIPT
+// =========================================================
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Load Active Morning Buses
+async function loadMorningBuses() {
+    const container = document.getElementById("morningBusListContainer");
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Loading morning schedules...</div>';
+    try {
+        const response = await fetch("/api/user/morning-buses", { cache: "no-store" });
+        const data = await response.json();
+        if (data.success && Array.isArray(data.buses) && data.buses.length > 0) {
+            window.cachedMorningBuses = data.buses;
+            const searchInput = document.getElementById("morningBusSearchInput");
+            if (searchInput && searchInput.value.trim()) {
+                filterMorningBuses(searchInput.value);
+            } else {
+                renderMorningBuses(window.cachedMorningBuses);
+            }
+        } else {
+            window.cachedMorningBuses = [];
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">No morning buses currently activated by administration.</div>';
+        }
+    } catch (e) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#b91c1c;">Unable to load morning buses.</div>';
+    }
+}
+
+// Populate Live Tracking Buses Dropdown
+async function populateLiveTrackingDropdown() {
+    const sel = document.getElementById("liveBusNumber");
+    if (!sel) return;
+    try {
+        const res = await fetch("/api/buses", { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.buses) && data.buses.length > 0) {
+            sel.innerHTML = '<option value="">-- Choose Bus to Track --</option>';
+            data.buses.forEach(b => {
+                const opt = document.createElement("option");
+                opt.value = b.bus_number;
+                opt.textContent = `Bus ${b.bus_number} - ${b.route_name}`;
+                sel.appendChild(opt);
+            });
+        } else {
+            sel.innerHTML = '<option value="">No buses available</option>';
+        }
+    } catch (e) {
+        sel.innerHTML = '<option value="">Unable to load buses</option>';
+    }
+}
+
+// Single view navigation handler
+
+// ==========================================
+// VISITOR NOTICES LOADER (FEATURE 3)
+// ==========================================
+async function loadVisitorNotices() {
+    const container = document.getElementById("visitorNoticesList");
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Loading notices...</div>';
+    try {
+        const res = await fetch("/api/notices?visitor=1", { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.notices) && data.notices.length > 0) {
+            container.innerHTML = data.notices.map(n => {
+                let badgeColor = "#0284c7";
+                let badgeBg = "#e0f2fe";
+                if (n.priority === "URGENT") {
+                    badgeColor = "#b91c1c";
+                    badgeBg = "#fee2e2";
+                } else if (n.priority === "HIGH") {
+                    badgeColor = "#b45309";
+                    badgeBg = "#fef3c7";
+                }
+                const attachmentHtml = n.attachment_url ? `
+                    <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">📎</span>
+                        <a href="${escapeHTML(n.attachment_url)}" target="_blank" download style="color:#075fce; font-weight:700; text-decoration:none; font-size:13px;">
+                            Download Attachment: ${escapeHTML(n.attachment_original_name || "Document")}
+                        </a>
+                    </div>
+                ` : "";
+
+                return `
+                    <div class="route-card" style="border-left: 4px solid ${badgeColor};">
+                        <div class="route-card-header">
+                            <div>
+                                <h3 style="font-size:16px; margin-bottom:4px;">${escapeHTML(n.title)}</h3>
+                                <div style="font-size:12px; color:#64748b;">📅 ${escapeHTML(n.created_at)}</div>
+                            </div>
+                            <span class="time-badge" style="background:${badgeBg}; color:${badgeColor}; font-weight:700;">
+                                ${escapeHTML(n.priority || "NORMAL")}
+                            </span>
+                        </div>
+                        <div class="route-details">
+                            <p style="white-space:pre-line; color:#334155; line-height:1.5;">${escapeHTML(n.message)}</p>
+                            ${attachmentHtml}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        } else {
+            container.innerHTML = '<div style="text-align:center; padding:25px; color:#64748b;">No active transit notices at this time.</div>';
+        }
+    } catch (e) {
+        container.innerHTML = '<div style="text-align:center; padding:25px; color:#b91c1c;">Unable to load notices.</div>';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    populateLiveTrackingDropdown();
+    loadVisitorNotices();
+    const grid = document.querySelector('.portal-grid');
+    if (!grid) return;
+    const boxes = Array.from(grid.querySelectorAll(':scope > .portal-box'));
+    const welcome = document.querySelector('.welcome-card');
+    boxes.forEach(box => {
+        const content = box.querySelector('.box-content');
+        if (!content) return;
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'portal-back-btn';
+        back.textContent = '← Back to Portal Overview';
+        back.style.cssText = 'display:inline-flex;align-items:center;gap:8px;margin:0 0 22px;padding:12px 18px;border:2px solid #075fce;border-radius:10px;background:#075fce;color:#ffffff;font-size:15px;font-weight:800;cursor:pointer;';
+        content.insertBefore(back, content.firstChild);
+        back.addEventListener('click', function () {
+            box.open = false;
+            boxes.forEach(item => { item.hidden = false; });
+            grid.classList.remove('portal-single-view');
+            if (welcome) welcome.hidden = false;
+            window.scrollTo({top:0, behavior:'smooth'});
+        });
+        box.addEventListener('toggle', function () {
+            if (!box.open) return;
+            boxes.forEach(item => { if (item !== box) item.hidden = true; });
+            grid.classList.add('portal-single-view');
+            if (welcome) welcome.hidden = true;
+            const heading = (box.querySelector('.box-title')?.textContent || '').trim().toLowerCase();
+            if (heading.includes('morning') && typeof loadMorningBuses === 'function') loadMorningBuses();
+            if (heading.includes('bus routes') && typeof loadRoutesWithStops === 'function') loadRoutesWithStops();
+            if (heading.includes('return bus') && typeof loadReturnBuses === 'function') loadReturnBuses();
+            if (heading.includes('notices') && typeof loadVisitorNotices === 'function') loadVisitorNotices();
+            window.scrollTo({top:0, behavior:'smooth'});
+        });
+    });
+});
+</script>
+
+</body>
+</html>

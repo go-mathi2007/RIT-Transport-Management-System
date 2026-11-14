@@ -1,5 +1,39 @@
+# Python virtual environments
 .venv/
-.idea/
+venv/
+ENV/
+env/
+
+# Python compiled bytecode & cache
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
-busmate.db
+
+# Environment files and credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+
+# SQLite databases & backups (preserves local DB, prevents uploading sensitive data)
+*.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+*.bak
+
+# Temporary files & scratch testing directory
+scratch/
+static/uploads/
+*.log
+logs/
+
+# IDE & OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

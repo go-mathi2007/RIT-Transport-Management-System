@@ -4,376 +4,1237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>BusMate - Driver Portal</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
+    <style>
+        :root {
+            --primary: #075fce;
+            --primary-dark: #064da6;
+            --dark: #082d5c;
+            --gray-100: #f8fafc;
+            --gray-200: #e2e8f0;
+            --gray-600: #475569;
+            --radius-md: 14px;
+        }
+
+        .driver-header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .assignment-banner {
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 15px rgba(8, 45, 92, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .assignment-info h2 {
+            font-size: 22px;
+            color: var(--dark);
+            margin-bottom: 6px;
+        }
+
+        .assignment-info p {
+            color: var(--gray-600);
+            font-size: 14px;
+        }
+
+        .bus-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #075fce;
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 14px;
+        }
+
+        .unassigned-alert {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            padding: 18px 22px;
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .grid-two {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            margin-bottom: 24px;
+        }
+
+        .driver-card {
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            padding: 24px;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 15px rgba(8, 45, 92, 0.05);
+        }
+
+        .driver-card h3 {
+            font-size: 17px;
+            color: var(--dark);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge-lg {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 14px;
+            margin-bottom: 14px;
+        }
+
+        .status-live {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-off {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 46px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 800;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-start {
+            background: #15803d;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(21, 128, 61, 0.25);
+        }
+
+        .btn-start:hover {
+            background: #166534;
+        }
+
+        .btn-stop {
+            background: #b91c1c;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);
+        }
+
+        .btn-stop:hover {
+            background: #991b1b;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* MEMBERS TABLE */
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 14px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .custom-table th {
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid var(--gray-200);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        .custom-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--gray-200);
+            color: #334155;
+        }
+
+        .custom-table tr:hover {
+            background: #f1f5f9;
+        }
+
+        .role-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .role-tag.student {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .role-tag.faculty {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .search-input-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .search-input-box input {
+            flex: 1;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .search-input-box input:focus {
+            border-color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .grid-two {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-<header class="topbar">
+    <header class="topbar">
+        <div class="topbar-content">
+            <div class="brand portal-brand">
+                <div class="portal-logo-wrap">
+                    <img src="{{ url_for('static', filename='rit-logo.png') }}" alt="RIT" class="portal-logo">
+                </div>
+                <div class="portal-brand-text">
+                    <h1>BUSMATE</h1>
+                    <p>Driver Portal</p>
+                </div>
+            </div>
 
-    <div class="portal-brand">
-        <div class="portal-logo-wrap">
-            <img src="{{ url_for('static', filename='rit-logo.png') }}" alt="RIT - Rajalakshmi Institute of Technology" class="portal-logo">
+            <div class="portal-actions">
+                <span class="role-chip">🚌 Driver: {{ user_name or "Driver" }}</span>
+                <a href="/logout" class="logout-btn">🚪 Logout</a>
+            </div>
         </div>
-        <div class="portal-brand-text">
-            <h1>BUSMATE</h1>
-            <p>Driver Portal</p>
+    </header>
+
+    <main class="container" style="padding-top:24px; padding-bottom:50px;">
+
+        <!-- ASSIGNMENT HEADER BANNER (PHASE 5 - #13) -->
+        <div class="assignment-banner">
+            <div class="assignment-info">
+                <h2>Welcome, {{ user_name or "Driver" }} 👋</h2>
+                <p>Mobile: <strong>{{ driver_phone or "---" }}</strong> &middot; Portal: <strong>Driver
+                        Dashboard</strong></p>
+            </div>
+            <div>
+                {% if has_assigned_bus %}
+                <span class="bus-tag">🚌 Assigned Bus: {{ assigned_bus_number }} &middot; {{ assigned_route_name
+                    }}</span>
+                {% else %}
+                <span class="role-tag" style="background:#fee2e2; color:#b91c1c; font-size:13px; padding:6px 12px;">⚠️
+                    No Bus Assigned</span>
+                {% endif %}
+            </div>
         </div>
-    </div>
 
-    <div class="portal-actions">
-        <span class="role-chip">🚌 Driver</span>
-        <a href="/" class="logout-btn">🚪 Logout</a>
-    </div>
+        {% if not has_assigned_bus %}
+        <div class="unassigned-alert">
+            <div style="font-size:24px;">⚠️</div>
+            <div>
+                <strong>No bus currently assigned to your account.</strong><br>
+                Please contact the transport administrator to assign your route. Location sharing is disabled until an
+                active bus assignment is provided.
+            </div>
+        </div>
+        {% endif %}
 
-</header>
+        <!-- PHASE 2: SMART OPERATIONAL ACTIONS BAR -->
+        <div class="driver-card"
+            style="margin-bottom:20px; background:linear-gradient(135deg, #0f172a, #1e293b); color:#fff; border:none; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                <div>
+                    <h3 style="color:#f8fafc; margin-bottom:4px; font-size:18px;">⚡ Smart Transport Controls</h3>
+                    <p style="color:#94a3b8; font-size:13px; margin:0;">Delay Reporting &middot; Emergency SOS Dispatch
+                        &middot; Live GPS Streaming</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn-action"
+                        style="background:#d97706; color:#fff; border:none; padding:10px 18px; font-weight:700; border-radius:8px; cursor:pointer;"
+                        onclick="openDelayReportModal()" {% if not has_assigned_bus %}disabled{% endif %}>
+                        ⏱️ REPORT DELAY
+                    </button>
+                    <button type="button" class="btn-action"
+                        style="background:#dc2626; color:#fff; border:none; padding:10px 18px; font-weight:800; border-radius:8px; cursor:pointer; box-shadow:0 0 12px rgba(220,38,38,0.5);"
+                        onclick="openEmergencySosModal()" {% if not has_assigned_bus %}disabled{% endif %}>
+                        🚨 EMERGENCY SOS
+                    </button>
+                </div>
+            </div>
 
+            <!-- ACTIVE EMERGENCY ALERT BANNER -->
+            <div id="activeSosBanner"
+                style="display:none; background:#7f1d1d; border:2px solid #ef4444; border-radius:8px; padding:12px 16px; margin-top:16px; align-items:center; justify-content:space-between; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:24px;">🚨</span>
+                    <div>
+                        <strong style="color:#fecaca; font-size:14px;" id="sosBannerText">ACTIVE EMERGENCY SOS
+                            BROADCAST</strong>
+                        <div style="color:#fca5a5; font-size:12px;" id="sosBannerSub">Campus Admin and Transport
+                            Incharges have received your coordinates.</div>
+                    </div>
+                </div>
+                <button type="button" onclick="cancelEmergencySos()"
+                    style="background:#fff; color:#991b1b; border:none; font-weight:700; padding:8px 14px; border-radius:6px; cursor:pointer;">Cancel
+                    SOS</button>
+            </div>
 
-<main class="container">
+            <!-- ACTIVE DELAY REPORT BANNER -->
+            <div id="activeDelayBanner"
+                style="display:none; background:#78350f; border:1px solid #f59e0b; border-radius:8px; padding:10px 14px; margin-top:12px; font-size:13px; color:#fef3c7;">
+                ⏱️ <strong>Delay Reported:</strong> <span id="delayBannerText">Traffic delay reported.</span>
+            </div>
+        </div>
 
-    <!-- WELCOME -->
+        <!-- FEATURE 4: BUS CAPACITY MANAGEMENT -->
+        {% if has_assigned_bus %}
+        <div class="driver-card" style="margin-bottom:20px; border-left:4px solid #0284c7;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                <div>
+                    <h3 style="margin:0 0 6px 0; color:var(--dark); font-size:17px;">💺 Bus {{ assigned_bus_number }} Seating Capacity</h3>
+                    <p style="margin:0; font-size:13px; color:var(--gray-600);">
+                        Configure total passenger seating capacity. The system automatically alerts administrators and incharges when the bus reaches full capacity.
+                    </p>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:14px; font-weight:700; color:#0f172a;">Capacity:</span>
+                    <input type="number" id="driverBusCapacityInput" min="10" max="120" value="{{ bus_capacity or 50 }}" style="width:80px; height:38px; text-align:center; font-size:15px; font-weight:700; border:1px solid #cbd5e1; border-radius:8px;">
+                    <button type="button" class="btn-action" onclick="updateBusCapacity()" style="width:auto; height:38px; padding:0 16px; background:#0284c7; color:#fff; border-radius:8px; font-weight:700; font-size:13px;">
+                        💾 Save Capacity
+                    </button>
+                </div>
+            </div>
+            <div id="capacityUpdateMsg" style="margin-top:10px; font-size:13px; font-weight:600; display:none;"></div>
+        </div>
+        {% endif %}
 
-    <section class="welcome-card">
+        <!-- CONTROLS & GPS DETAILS -->
+        <div class="grid-two">
 
-        <h2>Welcome Driver 🚌</h2>
+            <!-- LIVE LOCATION CONTROLS -->
+            <div class="driver-card">
+                <h3>📡 Live Location Sharing</h3>
+                <div id="gpsStatusBadge" class="status-badge-lg status-off">🔴 Location Sharing: OFF</div>
 
-        <p>
-            Welcome, <strong>{{ user_name or "Driver" }}</strong>. Select the bus you are driving below, then start live location sharing.
-        </p>
+                <!-- HTTP LAN GPS NOTICE -->
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:16px; color:#1e40af; font-size:12px; line-height:1.5;">
+                    💡 <strong>Phone GPS over HTTP LAN:</strong> Ensure device Location (GPS) is turned ON. If your mobile Chrome restricts location over plain HTTP, enable <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> for <code>http://10.127.97.246:5000</code>.
+                </div>
 
-    </section>
+                <p id="gpsStatusText" style="font-size:13px; color:var(--gray-600); margin-bottom:16px;">
+                    {% if has_assigned_bus %}
+                    Ready to share location for <strong>Bus {{ assigned_bus_number }}</strong> ({{ assigned_route_name
+                    }}).
+                    {% else %}
+                    Cannot start location sharing without an assigned bus.
+                    {% endif %}
+                </p>
 
+                <div style="margin-bottom:14px;">
+                    <label
+                        style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:5px; text-transform:uppercase;">Trip
+                        Status</label>
+                    <select id="tripStatusSelect" onchange="handleTripStatusChange()"
+                        style="width:100%; height:40px; border-radius:8px; border:1px solid var(--gray-200); padding:0 10px; font-weight:700;"
+                        {% if not has_assigned_bus %}disabled{% endif %}>
+                        <option value="NOT_STARTED">⚪ Trip Not Started</option>
+                        <option value="ON_ROUTE" selected>🟢 On Route (Normal)</option>
+                        <option value="DELAYED">🟡 Delayed (Traffic)</option>
+                        <option value="BREAKDOWN">🔴 Breakdown / Issue</option>
+                        <option value="COMPLETED">🔵 Trip Completed</option>
+                    </select>
+                </div>
 
-    <!-- BUS SELECTION -->
+                <div style="margin-bottom:16px;">
+                    <label
+                        style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:5px; text-transform:uppercase;">Sharing
+                        Duration</label>
+                    <select id="sharingDuration"
+                        style="width:100%; height:40px; border-radius:8px; border:1px solid var(--gray-200); padding:0 10px;"
+                        {% if not has_assigned_bus %}disabled{% endif %}>
+                        <option value="60">1 Hour</option>
+                        <option value="120">2 Hours</option>
+                        <option value="240" selected>4 Hours (Standard Shift)</option>
+                        <option value="480">8 Hours</option>
+                        <option value="0">Until Manually Stopped</option>
+                    </select>
+                </div>
 
-    <section class="portal-section">
+                <div style="display:flex; gap:12px;">
+                    <button type="button" class="btn-action btn-start" id="btnStartGps" onclick="startLocationSharing()"
+                        {% if not has_assigned_bus %}disabled{% endif %}>
+                        ▶ START LOCATION SHARING
+                    </button>
+                    <button type="button" class="btn-action btn-stop" id="btnStopGps" onclick="stopLocationSharing()"
+                        style="display:none;">
+                        ⏹ STOP LOCATION SHARING
+                    </button>
+                </div>
+            </div>
 
-        <h2>👤 Driver Account</h2>
-        <p>Name: <strong>{{ user_name or "---" }}</strong></p>
-        <p>Phone: <strong>{{ session.get("driver_phone", "---") }}</strong></p>
+            <!-- GPS COORDINATES READOUT -->
+            <div class="driver-card">
+                <h3>📍 Real-Time GPS Readout</h3>
+                <div style="display:flex; flex-direction:column; gap:12px; font-size:14px;">
+                    <div
+                        style="display:flex; justify-content:space-between; padding:10px 14px; background:var(--gray-100); border-radius:8px;">
+                        <span style="color:var(--gray-600); font-weight:600;">Assigned Bus</span>
+                        <strong style="color:var(--dark);">{{ assigned_bus_number or "None" }}</strong>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; padding:10px 14px; background:var(--gray-100); border-radius:8px;">
+                        <span style="color:var(--gray-600); font-weight:600;">Latitude</span>
+                        <strong id="readoutLat" style="font-family:monospace; color:var(--dark);">---</strong>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; padding:10px 14px; background:var(--gray-100); border-radius:8px;">
+                        <span style="color:var(--gray-600); font-weight:600;">Longitude</span>
+                        <strong id="readoutLng" style="font-family:monospace; color:var(--dark);">---</strong>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; padding:10px 14px; background:var(--gray-100); border-radius:8px;">
+                        <span style="color:var(--gray-600); font-weight:600;">Last Server Fix</span>
+                        <strong id="readoutTime" style="color:var(--dark);">---</strong>
+                    </div>
+                </div>
 
-    </section>
+                <div style="margin-top:16px; font-size:12px; color:var(--gray-600); line-height:1.5;">
+                    ℹ️ <em>Keep your browser active during the trip. GPS updates are securely transmitted to students,
+                        faculty, and administrative dispatch.</em>
+                </div>
+            </div>
 
-    <section class="portal-section">
-        <h2>🚌 Select Bus</h2>
-        <p>Select the bus you are currently driving. All available buses are shown here.</p>
-        <select id="driverBusNumber" style="margin-top:8px;">
-            <option value="">Loading buses...</option>
-        </select>
-        <button class="primary-btn" id="selectDriverBusButton" type="button" onclick="selectDriverBus()" style="margin-top:12px;">🚌 Select This Bus</button>
-        <p id="busSelectionMessage" style="margin-top:10px;"></p>
-    </section>
+        </div>
 
+        <!-- TODAY'S ATTENDANCE SUMMARY -->
+        <div class="driver-card" style="margin-bottom:20px;">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                <div>
+                    <h3>📋 Passenger Boarding Today (Bus {{ assigned_bus_number or '---' }})</h3>
+                    <p style="font-size:13px; color:var(--gray-600);">Real-time count of students and faculty who
+                        scanned the permanent bus QR code upon boarding.</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <span class="role-tag" id="driverMorningBadge"
+                        style="background:#e0f2fe; color:#0369a1; font-size:13px; font-weight:700; padding:6px 14px; border:1px solid #7dd3fc;">
+                        🌅 Morning: <span id="driverMorningCountNum">0</span>
+                    </span>
+                    <span class="role-tag" id="driverEveningBadge"
+                        style="background:#fef3c7; color:#b45309; font-size:13px; font-weight:700; padding:6px 14px; border:1px solid #fde68a;">
+                        🌆 Return: <span id="driverEveningCountNum">0</span>
+                    </span>
+                    <span class="role-tag" id="driverBoardedCountBadge"
+                        style="background:#dcfce7; color:#15803d; font-size:14px; font-weight:800; padding:8px 16px; border:1px solid #86efac;">
+                        TOTAL BOARDED TODAY: <span id="boardedCountNum">0</span> / <span id="busCapacityNum">50</span>
+                    </span>
+                </div>
+            </div>
 
+            <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:13px; font-weight:600; color:#475569;">Filter by Service:</span>
+                <button type="button" class="btn-action active-filter" id="driverFilterAll"
+                    onclick="setDriverAttendanceFilter('ALL')"
+                    style="padding:5px 14px; font-size:12px; border-radius:20px; background:#075fce; color:#fff; font-weight:700;">All
+                    Today</button>
+                <button type="button" class="btn-action" id="driverFilterMorning"
+                    onclick="setDriverAttendanceFilter('MORNING')"
+                    style="padding:5px 14px; font-size:12px; border-radius:20px; background:#f1f5f9; color:#475569; font-weight:700;">🌅
+                    Morning Only</button>
+                <button type="button" class="btn-action" id="driverFilterReturn"
+                    onclick="setDriverAttendanceFilter('RETURN')"
+                    style="padding:5px 14px; font-size:12px; border-radius:20px; background:#f1f5f9; color:#475569; font-weight:700;">🌆
+                    Evening Return Only</button>
+            </div>
 
-    <section class="portal-section">
-        <h2>🚦 Bus Status</h2>
-        <p>Choose the current status of the selected bus. Students and faculty will see only the status of the bus they track.</p>
-        <select id="driverBusStatus">
-            <option value="NOT_STARTED">⚪ Not Started</option>
-            <option value="ON_ROUTE" selected>🟢 On Route</option>
-            <option value="DELAYED">🟡 Delayed</option>
-            <option value="BREAKDOWN">🔴 Breakdown</option>
-            <option value="COMPLETED">🔵 Trip Completed</option>
-        </select>
-        <button class="primary-btn" id="updateBusStatusButton" type="button" onclick="updateDriverBusStatus()" style="margin-top:12px;">Update Bus Status</button>
-        <p id="driverStatusMessage" style="margin-top:10px;"></p>
-    </section>
+            <div id="busFullAlertBanner"
+                style="display:none; background:#fee2e2; border:1px solid #f87171; border-radius:8px; padding:12px; margin-bottom:15px; color:#991b1b; font-weight:700;">
+                ⚠️ BUS IS FULL: Boarding limit reached. Additional passengers cannot be seated.
+            </div>
 
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>Passenger Name</th>
+                            <th>Role</th>
+                            <th>ID Number</th>
+                            <th>Department</th>
+                            <th>Boarding Point</th>
+                            <th>Service</th>
+                            <th>Boarding Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driverAttendanceTableBody">
+                        <tr>
+                            <td colspan="8" style="text-align:center; padding:20px; color:var(--gray-600);">
+                                No passengers have marked boarding yet today. Students and faculty scan the permanent QR
+                                code inside the bus.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-    <!-- GPS CONTROL -->
+        <!-- BUS MEMBERS SECTION (PHASE 3 - #8) -->
+        <div class="driver-card">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+                <div>
+                    <h3>👥 Assigned Bus Members (Bus {{ assigned_bus_number or '---' }})</h3>
+                    <p style="font-size:13px; color:var(--gray-600);">Displaying registered students and faculty on this
+                        assigned bus.</p>
+                </div>
+                <div>
+                    <span class="role-tag" id="memberCountBadge"
+                        style="background:#e8f2ff; color:#075fce; font-size:13px; padding:6px 14px;">Total Members:
+                        0</span>
+                </div>
+            </div>
 
-    <section class="portal-section">
+            <div class="search-input-box">
+                <input type="text" id="memberSearchInput"
+                    placeholder="🔍 Search by student name, ID, or boarding point..." onkeyup="filterDriverMembers()">
+            </div>
 
-        <h2>📍 Live Location</h2>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">S.No</th>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Reg No / Emp ID</th>
+                            <th>Department</th>
+                            <th>Boarding Point</th>
+                            <th>Contact</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driverMembersTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:25px; color:var(--gray-600);">
+                                {% if has_assigned_bus %}
+                                Loading registered passengers...
+                                {% else %}
+                                No members to display. An active bus assignment is required.
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-        <p id="gpsStatus">
-            Location sharing is OFF
-        </p>
+        <!-- DELAY REPORT MODAL -->
+        <div id="delayReportModal"
+            style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:center; padding:15px;">
+            <div
+                style="background:#fff; border-radius:12px; width:100%; max-width:440px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+                <div
+                    style="background:#d97706; color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:16px;">⏱️ Report Bus Delay</strong>
+                    <button type="button" onclick="closeDelayReportModal()"
+                        style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+                </div>
+                <form id="delayReportForm" onsubmit="submitDelayReport(event)" style="padding:18px;">
+                    <div style="margin-bottom:14px;">
+                        <label
+                            style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:5px;">Reason
+                            for Delay *</label>
+                        <select id="delayReasonSelect" required
+                            style="width:100%; height:40px; border-radius:6px; border:1px solid #cbd5e1; padding:0 10px;">
+                            <option value="Traffic Congestion">Heavy Traffic Congestion</option>
+                            <option value="Vehicle Breakdown">Vehicle Breakdown / Puncture</option>
+                            <option value="Inclement Weather">Inclement Weather / Heavy Rain</option>
+                            <option value="Route Blockage / Accident Ahead">Route Blockage / Accident Ahead</option>
+                            <option value="Technical Issue">Fuel / Engine Technical Issue</option>
+                            <option value="Other">Other Operational Delay</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label
+                            style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:5px;">Expected
+                            Delay Duration *</label>
+                        <select id="delayMinutesSelect" required
+                            style="width:100%; height:40px; border-radius:6px; border:1px solid #cbd5e1; padding:0 10px;">
+                            <option value="10">10 Minutes</option>
+                            <option value="15" selected>15 Minutes</option>
+                            <option value="20">20 Minutes</option>
+                            <option value="30">30 Minutes</option>
+                            <option value="45">45 Minutes</option>
+                            <option value="60">60 Minutes or More</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label
+                            style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:5px;">Additional
+                            Notes (Optional)</label>
+                        <textarea id="delayNotes" rows="2" placeholder="e.g. Stuck near Poonamallee bypass junction..."
+                            style="width:100%; border-radius:6px; border:1px solid #cbd5e1; padding:8px 10px; font-family:inherit;"></textarea>
+                    </div>
+                    <button type="submit"
+                        style="width:100%; height:42px; background:#d97706; color:#fff; border:none; border-radius:6px; font-weight:700; font-size:14px; cursor:pointer;">
+                        Transmit Delay Notice
+                    </button>
+                </form>
+            </div>
+        </div>
 
-        <label for="sharingDuration" style="display:block;margin-top:12px;">Live sharing duration</label>
-        <select id="sharingDuration" style="margin-top:6px;">
-            <option value="60">1 hour</option>
-            <option value="120">2 hours</option>
-            <option value="240" selected>4 hours</option>
-            <option value="480">8 hours</option>
-            <option value="0">Until I stop</option>
-        </select>
+        <!-- EMERGENCY SOS MODAL -->
+        <div id="emergencySosModal"
+            style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:center; padding:15px;">
+            <div
+                style="background:#fff; border-radius:12px; width:100%; max-width:440px; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+                <div
+                    style="background:#dc2626; color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:16px;">🚨 TRANSMIT EMERGENCY SOS</strong>
+                    <button type="button" onclick="closeEmergencySosModal()"
+                        style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+                </div>
+                <form id="emergencySosForm" onsubmit="submitEmergencySos(event)" style="padding:18px;">
+                    <div
+                        style="background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; padding:10px 12px; font-size:12px; color:#991b1b; margin-bottom:14px;">
+                        ⚠️ This immediately alerts Campus Administration, all Transport Incharges, and emergency
+                        dispatch with your bus GPS position.
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label
+                            style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:5px;">Emergency
+                            Classification *</label>
+                        <select id="emergencyTypeSelect" required
+                            style="width:100%; height:40px; border-radius:6px; border:1px solid #cbd5e1; padding:0 10px;">
+                            <option value="Accident / Collision">Vehicle Accident / Collision</option>
+                            <option value="Medical Emergency">Medical Emergency on Bus</option>
+                            <option value="Engine Fire / Smoke">Engine Fire / Smoke</option>
+                            <option value="Highway Breakdown">Severe Breakdown on Highway</option>
+                            <option value="Passenger Security Threat">Passenger Security / Harassment Issue</option>
+                            <option value="Other Emergency">Other Critical Emergency</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label
+                            style="display:block; font-size:12px; font-weight:700; color:#334155; margin-bottom:5px;">Emergency
+                            Details (Optional)</label>
+                        <textarea id="emergencyNotes" rows="2"
+                            placeholder="e.g. Ambulance requested immediately near Poonamallee..."
+                            style="width:100%; border-radius:6px; border:1px solid #cbd5e1; padding:8px 10px; font-family:inherit;"></textarea>
+                    </div>
+                    <button type="submit"
+                        style="width:100%; height:44px; background:#dc2626; color:#fff; border:none; border-radius:6px; font-weight:800; font-size:14px; cursor:pointer; letter-spacing:0.5px;">
+                        🚨 BROADCAST EMERGENCY SOS NOW
+                    </button>
+                </form>
+            </div>
+        </div>
 
-        <button
-            id="startGpsButton"
-            onclick="startSharingLocation()">
+    </main>
 
-            ▶ Start Location Sharing
+    <script>
+        let assignedBusNumber = "{{ assigned_bus_number or '' }}";
+        let hasAssignedBus = {{ 'true' if has_assigned_bus else 'false' }};
+        let driverWatchId = null;
+        let sharingExpiresAt = null;
+        let allMembersCache = [];
 
-        </button>
+        // ==========================================
+        // LOAD BUS MEMBERS (PHASE 3 - #8)
+        // ==========================================
+        async function loadDriverBusMembers() {
+            if (!hasAssignedBus) return;
+            const tbody = document.getElementById("driverMembersTableBody");
+            const countBadge = document.getElementById("memberCountBadge");
 
-        <button
-            id="stopGpsButton"
-            onclick="stopSharingLocation()"
-            style="display:none;">
+            try {
+                const response = await fetch("/api/driver/bus-members", { cache: "no-store" });
+                const data = await response.json();
 
-            ⏹ Stop Location Sharing
-
-        </button>
-
-    </section>
-
-
-    <!-- CURRENT LOCATION -->
-
-    <section class="portal-section">
-
-        <h2>📡 Current GPS</h2>
-
-        <p>
-            Latitude:
-            <strong id="driverLatitude">---</strong>
-        </p>
-
-        <p>
-            Longitude:
-            <strong id="driverLongitude">---</strong>
-        </p>
-
-        <p>
-            Last Updated:
-            <strong id="driverUpdated">---</strong>
-        </p>
-
-    </section>
-
-
-    <!-- INFORMATION -->
-
-    <section class="portal-section">
-
-        <h2>ℹ️ Driver Instructions</h2>
-
-        <ul>
-
-            <li>Select the bus you are currently driving.</li>
-
-            <li>Press <strong>Start Location Sharing</strong>.</li>
-
-            <li>Allow GPS/location permission.</li>
-
-            <li>Keep the phone with the driver during the trip.</li>
-
-            <li>Press Stop when the trip is finished.</li>
-
-        </ul>
-
-    </section>
-
-</main>
-
-
-<script src="{{ url_for('static', filename='app.js') }}"></script>
-
-
-<script>
-
-// ==========================================
-// DRIVER GPS VARIABLES
-// ==========================================
-
-let driverWatchId = null;
-let sharingExpiresAt = null;
-
-async function loadDriverBuses() {
-    const select = document.getElementById("driverBusNumber");
-    try {
-        const response = await fetch("/api/driver/buses", {cache:"no-store"});
-        const data = await response.json();
-        select.innerHTML = '<option value="">Select bus</option>';
-        if (!data.success || !Array.isArray(data.buses) || !data.buses.length) {
-            select.innerHTML = '<option value="">No buses available</option>';
-            return;
+                if (data.success && data.assigned && Array.isArray(data.members)) {
+                    allMembersCache = data.members;
+                    countBadge.textContent = `Total Members: ${data.total_count}`;
+                    renderDriverMembersTable(allMembersCache);
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:25px; color:#64748b;">${data.message || 'No registered passengers found for this bus.'}</td></tr>`;
+                    countBadge.textContent = "Total Members: 0";
+                }
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#b91c1c;">Unable to load bus members.</td></tr>';
+            }
         }
-        data.buses.forEach(function(bus) {
-            const option = document.createElement("option");
-            option.value = bus.bus_number;
-            option.dataset.busId = bus.id;
-            option.textContent = `${bus.bus_number} - ${bus.route_name}`;
-            if (bus.assigned) option.selected = true;
-            select.appendChild(option);
-        });
-    } catch (error) {
-        console.error("Unable to load buses:", error);
-        select.innerHTML = '<option value="">Unable to load buses</option>';
-    }
-}
 
-async function selectDriverBus() {
-    const select = document.getElementById("driverBusNumber");
-    const message = document.getElementById("busSelectionMessage");
-    const option = select.options[select.selectedIndex];
-    const busId = option && option.dataset ? option.dataset.busId : null;
-    if (!busId) {
-        message.textContent = "Please select a bus first.";
+        function renderDriverMembersTable(members) {
+            const tbody = document.getElementById("driverMembersTableBody");
+            if (!members.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#64748b;">No matching members found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = members.map((m, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+            <td><strong>${escapeHtml(m.name)}</strong></td>
+            <td><span class="role-tag ${m.role.toLowerCase()}">${escapeHtml(m.role)}</span></td>
+            <td>${escapeHtml(m.register_number)}</td>
+            <td>${escapeHtml(m.department)}</td>
+            <td><strong>📍 ${escapeHtml(m.boarding_point)}</strong></td>
+            <td>${m.mobile ? `📞 ${escapeHtml(m.mobile)}` : (m.email ? `✉️ ${escapeHtml(m.email)}` : '---')}</td>
+        </tr>
+    `).join("");
+        }
+
+        function filterDriverMembers() {
+            const query = document.getElementById("memberSearchInput").value.trim().toLowerCase();
+            if (!query) {
+                renderDriverMembersTable(allMembersCache);
+                return;
+            }
+            const filtered = allMembersCache.filter(m =>
+                (m.name && m.name.toLowerCase().includes(query)) ||
+                (m.register_number && m.register_number.toLowerCase().includes(query)) ||
+                (m.boarding_point && m.boarding_point.toLowerCase().includes(query)) ||
+                (m.department && m.department.toLowerCase().includes(query))
+            );
+            renderDriverMembersTable(filtered);
+        }
+
+        // ==========================================
+        // LOCATION SHARING (PHASE 5 - #13, #14)
+        // ==========================================
+        let screenWakeLock = null;
+
+        async function requestScreenWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    screenWakeLock = await navigator.wakeLock.request('screen');
+                    screenWakeLock.addEventListener('release', () => {
+                        screenWakeLock = null;
+                    });
+                }
+            } catch (err) {
+                console.warn("Screen WakeLock unavailable or denied:", err);
+            }
+        }
+
+        function releaseScreenWakeLock() {
+            if (screenWakeLock) {
+                try { screenWakeLock.release(); } catch (e) {}
+                screenWakeLock = null;
+            }
+        }
+
+        async function sendLocationUpdate(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy ? Math.round(position.coords.accuracy) : null;
+
+            const latEl = document.getElementById("readoutLat");
+            const lngEl = document.getElementById("readoutLng");
+            if (latEl) latEl.textContent = lat.toFixed(6);
+            if (lngEl) lngEl.textContent = lng.toFixed(6);
+
+            const tripStatusEl = document.getElementById("tripStatusSelect");
+            const tripStatus = tripStatusEl ? tripStatusEl.value : "ON_ROUTE";
+
+            try {
+                const response = await fetch("/api/location/update", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bus_number: assignedBusNumber,
+                        latitude: lat,
+                        longitude: lng,
+                        bus_status: tripStatus,
+                        client_timestamp: Date.now(),
+                        sharing_expires_at: sharingExpiresAt
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    const timeEl = document.getElementById("readoutTime");
+                    if (timeEl) timeEl.textContent = data.updated_at || "Just now";
+                    const badge = document.getElementById("gpsStatusBadge");
+                    if (badge) {
+                        badge.className = "status-badge-lg status-live";
+                        badge.textContent = "🟢 Location Sharing: ACTIVE";
+                    }
+                    const accInfo = accuracy ? ` (GPS accuracy: ±${accuracy}m)` : "";
+                    const textEl = document.getElementById("gpsStatusText");
+                    if (textEl) {
+                        textEl.textContent = `Streaming phone GPS for Bus ${assignedBusNumber} (${tripStatus.replace("_", " ")})${accInfo}.`;
+                    }
+                    return true;
+                } else {
+                    const textEl = document.getElementById("gpsStatusText");
+                    if (textEl) textEl.textContent = "⚠️ " + (data.message || "Server rejected update.");
+                    return false;
+                }
+            } catch (err) {
+                const textEl = document.getElementById("gpsStatusText");
+                if (textEl) textEl.textContent = "⚠️ GPS acquired, retrying network sync...";
+                return false;
+            }
+        }
+
+        function startLocationSharing() {
+            if (!hasAssignedBus || !assignedBusNumber) {
+                alert("You cannot start location sharing without an assigned bus.");
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your device browser.");
+                const textEl = document.getElementById("gpsStatusText");
+                if (textEl) textEl.textContent = "❌ Geolocation API is not supported on this browser.";
+                return;
+            }
+
+            const durationEl = document.getElementById("sharingDuration");
+            const durationMins = durationEl ? (parseInt(durationEl.value) || 0) : 0;
+            sharingExpiresAt = durationMins > 0 ? new Date(Date.now() + durationMins * 60000).toISOString() : null;
+
+            const textEl = document.getElementById("gpsStatusText");
+            if (textEl) textEl.textContent = "Acquiring satellite GPS lock from your device...";
+
+            requestScreenWakeLock();
+
+            const options = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
+
+            navigator.geolocation.getCurrentPosition(async function (pos) {
+                const ok = await sendLocationUpdate(pos);
+                if (!ok) return;
+
+                if (driverWatchId !== null) {
+                    navigator.geolocation.clearWatch(driverWatchId);
+                }
+
+                driverWatchId = navigator.geolocation.watchPosition(
+                    async function (newPos) {
+                        if (sharingExpiresAt && Date.now() >= new Date(sharingExpiresAt).getTime()) {
+                            await stopLocationSharing();
+                            alert("Scheduled live sharing duration completed.");
+                            return;
+                        }
+                        await sendLocationUpdate(newPos);
+                    },
+                    function (err) {
+                        console.warn("GPS continuous watch warning:", err);
+                        const statusEl = document.getElementById("gpsStatusText");
+                        if (statusEl) {
+                            if (err.code === 1) {
+                                statusEl.textContent = "❌ GPS Permission Denied: Location access revoked.";
+                            } else if (err.code === 2) {
+                                statusEl.textContent = "⚠️ GPS Position Unavailable: Searching for satellite signal...";
+                            } else if (err.code === 3) {
+                                statusEl.textContent = "⚠️ GPS Timeout: Weak satellite signal, retrying...";
+                            } else {
+                                statusEl.textContent = "GPS Warning: " + (err.message || "Signal lost.");
+                            }
+                        }
+                    },
+                    options
+                );
+
+                const btnStart = document.getElementById("btnStartGps");
+                const btnStop = document.getElementById("btnStopGps");
+                if (btnStart) btnStart.style.display = "none";
+                if (btnStop) btnStop.style.display = "inline-flex";
+            }, function (err) {
+                releaseScreenWakeLock();
+                let errMsg = "GPS error occurred.";
+                if (err.code === 1) { // PERMISSION_DENIED
+                    if (window.location.protocol === "http:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+                        errMsg = "GPS Permission Denied. Mobile Chrome blocks location over plain HTTP LAN.\n\nTo allow GPS in mobile Chrome:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure\n2. Add: " + window.location.origin + "\n3. Set Enabled and tap Relaunch.";
+                    } else {
+                        errMsg = "GPS Permission Denied. Please allow location access in your browser settings (tap the lock/tune icon in address bar).";
+                    }
+                } else if (err.code === 2) { // POSITION_UNAVAILABLE
+                    errMsg = "GPS Position Unavailable. Please verify that your device Location/GPS is turned ON in phone settings.";
+                } else if (err.code === 3) { // TIMEOUT
+                    errMsg = "GPS Lock Timeout. Device could not acquire satellite signal within 15 seconds. Please try moving closer to a window or outdoors.";
+                } else {
+                    errMsg = "GPS Error: " + (err.message || "Unknown error");
+                }
+                alert("Unable to access GPS:\n\n" + errMsg);
+                const statusEl = document.getElementById("gpsStatusText");
+                if (statusEl) statusEl.textContent = "⚠️ " + errMsg;
+            }, options);
+        }
+
+        async function stopLocationSharing() {
+            releaseScreenWakeLock();
+
+            if (driverWatchId !== null) {
+                navigator.geolocation.clearWatch(driverWatchId);
+                driverWatchId = null;
+            }
+            sharingExpiresAt = null;
+
+            const badge = document.getElementById("gpsStatusBadge");
+            if (badge) {
+                badge.className = "status-badge-lg status-off";
+                badge.textContent = "🔴 Location Sharing: OFF";
+            }
+            const textEl = document.getElementById("gpsStatusText");
+            if (textEl) textEl.textContent = "Location sharing has been stopped.";
+
+            const btnStart = document.getElementById("btnStartGps");
+            const btnStop = document.getElementById("btnStopGps");
+            if (btnStart) btnStart.style.display = "inline-flex";
+            if (btnStop) btnStop.style.display = "none";
+
+            try {
+                await fetch(`/api/location/stop/${encodeURIComponent(assignedBusNumber)}`, { method: "POST" });
+            } catch (e) {
+                console.error("Stop signal error:", e);
+            }
+        }
+
+        // Resume GPS stream immediately if mobile tab wakes up or returns to foreground
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && driverWatchId !== null) {
+                requestScreenWakeLock();
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(sendLocationUpdate, (err) => {
+                        console.warn("Foreground GPS refresh error:", err);
+                    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+                }
+            }
+        });
+
+        // Notify server to stop sharing if driver closes tab or navigates away
+        window.addEventListener("beforeunload", () => {
+            if (driverWatchId !== null && assignedBusNumber) {
+                navigator.sendBeacon(`/api/location/stop/${encodeURIComponent(assignedBusNumber)}`);
+            }
+        });
+
+        async function handleTripStatusChange() {
+            if (!hasAssignedBus) return;
+            const status = document.getElementById("tripStatusSelect").value;
+            try {
+                await fetch(`/api/location/status/${encodeURIComponent(assignedBusNumber)}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bus_status: status })
+                });
+            } catch (e) {
+                console.error("Status update error:", e);
+            }
+        }
+
+        function escapeHtml(val) {
+            return String(val == null ? "" : val).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadDriverBusMembers();
+            loadDriverAttendanceToday();
+        });
+
+        // ==========================================
+        // PHASE 2: SMART OPERATIONAL CONTROLS
+        // ==========================================
+        let currentActiveAlertId = null;
+        let driverAttendanceAllRecords = [];
+        let driverCurrentServiceFilter = "ALL";
+
+        function setDriverAttendanceFilter(filterType) {
+            driverCurrentServiceFilter = filterType;
+            ["ALL", "MORNING", "RETURN"].forEach(ft => {
+                const btn = document.getElementById("driverFilter" + (ft === "ALL" ? "All" : (ft === "MORNING" ? "Morning" : "Return")));
+                if (btn) {
+                    if (ft === filterType) {
+                        btn.style.background = "#075fce";
+                        btn.style.color = "#ffffff";
+                    } else {
+                        btn.style.background = "#f1f5f9";
+                        btn.style.color = "#475569";
+                    }
+                }
+            });
+            renderDriverAttendanceTable();
+        }
+
+        function renderDriverAttendanceTable() {
+            const tbody = document.getElementById("driverAttendanceTableBody");
+            if (!tbody) return;
+
+            let filtered = driverAttendanceAllRecords;
+            if (driverCurrentServiceFilter !== "ALL") {
+                filtered = driverAttendanceAllRecords.filter(a => (a.service_type || "MORNING").toUpperCase() === driverCurrentServiceFilter);
+            }
+
+            if (!filtered || !filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--gray-600);">No passengers recorded for ${driverCurrentServiceFilter === "ALL" ? "today" : (driverCurrentServiceFilter === "MORNING" ? "Morning" : "Evening Return") + " service"}.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((a, idx) => {
+                const isReturn = (a.service_type || "MORNING").toUpperCase() === "RETURN";
+                const serviceBadge = isReturn
+                    ? '<span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700;">🌆 Return</span>'
+                    : '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">🌅 Morning</span>';
+
+                return `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${escapeHtml(a.passenger_name)}</strong></td>
+                <td><span class="badge" style="background:#f1f5f9; color:#334155;">${escapeHtml(a.role || 'Student')}</span></td>
+                <td><code>${escapeHtml(a.register_number || '---')}</code></td>
+                <td>${escapeHtml(a.department || '---')}</td>
+                <td>${escapeHtml(a.boarding_point || 'RIT Campus')}</td>
+                <td>${serviceBadge}</td>
+                <td>${escapeHtml(a.boarding_time || '---')}</td>
+            </tr>
+        `;
+            }).join("");
+        }
+
+        // ATTENDANCE TODAY
+        async function loadDriverAttendanceToday() {
+            if (!hasAssignedBus) return;
+            const countBadge = document.getElementById("boardedCountNum");
+            const morningBadge = document.getElementById("driverMorningCountNum");
+            const eveningBadge = document.getElementById("driverEveningCountNum");
+            const capBadge = document.getElementById("busCapacityNum");
+            const fullBanner = document.getElementById("busFullAlertBanner");
+
+            try {
+                const res = await fetch("/api/attendance/reports", { cache: "no-store" });
+                const data = await res.json();
+                if (data.success) {
+                    const count = data.total_boarded_today || 0;
+                    const morningCount = data.total_morning_today || 0;
+                    const eveningCount = data.total_evening_today || 0;
+                    const cap = data.capacity || 50;
+
+                    if (countBadge) countBadge.textContent = count;
+                    if (morningBadge) morningBadge.textContent = morningCount;
+                    if (eveningBadge) eveningBadge.textContent = eveningCount;
+                    if (capBadge) capBadge.textContent = cap;
+
+                    if (count >= cap) {
+                        if (fullBanner) fullBanner.style.display = "block";
+                    } else {
+                        if (fullBanner) fullBanner.style.display = "none";
+                    }
+
+                    driverAttendanceAllRecords = data.attendance || [];
+                    renderDriverAttendanceTable();
+                }
+            } catch (e) {
+                console.error("Error loading attendance today:", e);
+            }
+        }
+
+        // DELAY REPORTING
+        function openDelayReportModal() {
+            document.getElementById("delayReportModal").style.display = "flex";
+        }
+
+        function closeDelayReportModal() {
+            document.getElementById("delayReportModal").style.display = "none";
+        }
+
+        async function submitDelayReport(e) {
+            e.preventDefault();
+            const reason = document.getElementById("delayReasonSelect").value;
+            const expected_delay_minutes = parseInt(document.getElementById("delayMinutesSelect").value) || 15;
+            const notes = document.getElementById("delayNotes").value.trim();
+
+            try {
+                const res = await fetch("/api/driver/report-delay", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reason, expected_delay_minutes, notes })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    closeDelayReportModal();
+                    document.getElementById("activeDelayBanner").style.display = "block";
+                    document.getElementById("delayBannerText").textContent = `${reason} (+${expected_delay_minutes} mins). Dispatch notified.`;
+                    alert("Delay report successfully broadcasted to Admin, Incharges, and passengers.");
+                } else {
+                    alert(data.message || "Failed to submit delay report.");
+                }
+            } catch (e) {
+                alert("Network error submitting delay report.");
+            }
+        }
+
+        // EMERGENCY SOS
+        function openEmergencySosModal() {
+            document.getElementById("emergencySosModal").style.display = "flex";
+        }
+
+        function closeEmergencySosModal() {
+            document.getElementById("emergencySosModal").style.display = "none";
+        }
+
+        async function submitEmergencySos(e) {
+            e.preventDefault();
+            const emergency_type = document.getElementById("emergencyTypeSelect").value;
+            const notes = document.getElementById("emergencyNotes").value.trim();
+
+            // Acquire current GPS if available
+            let lat = null, lng = null;
+            if (navigator.geolocation) {
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true });
+                    });
+                    lat = pos.coords.latitude;
+                    lng = pos.coords.longitude;
+                } catch (e) {
+                    console.warn("Could not acquire instant GPS for SOS:", e);
+                }
+            }
+
+            try {
+                const res = await fetch("/api/driver/emergency-sos", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ emergency_type, notes, latitude: lat, longitude: lng })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    currentActiveAlertId = data.alert_id;
+                    closeEmergencySosModal();
+                    document.getElementById("activeSosBanner").style.display = "flex";
+                    document.getElementById("sosBannerText").textContent = `ACTIVE EMERGENCY SOS: ${emergency_type}`;
+                    alert("EMERGENCY SOS TRANSMITTED! Campus Administration and Transport Incharges have been notified.");
+                } else {
+                    alert(data.message || "Failed to broadcast Emergency SOS.");
+                }
+            } catch (e) {
+                alert("Network error broadcasting Emergency SOS.");
+            }
+        }
+
+        async function cancelEmergencySos() {
+            if (!confirm("Are you sure you want to cancel this emergency alert?")) return;
+            try {
+                const res = await fetch("/api/driver/emergency-sos/cancel", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ alert_id: currentActiveAlertId })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    document.getElementById("activeSosBanner").style.display = "none";
+                    currentActiveAlertId = null;
+                    alert("Emergency alert cancelled.");
+                } else {
+                    alert(data.message || "Failed to cancel alert.");
+                }
+            } catch (e) {
+                alert("Network error cancelling alert.");
+            }
+        }
+    
+// ==========================================
+// FEATURE 4: BUS SEAT CAPACITY CONFIGURATION
+// ==========================================
+async function updateBusCapacity() {
+    const input = document.getElementById("driverBusCapacityInput");
+    const msg = document.getElementById("capacityUpdateMsg");
+    if (!input || !msg) return;
+    const val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 10 || val > 120) {
+        msg.textContent = "Please enter a valid seat capacity between 10 and 120.";
+        msg.style.color = "#b91c1c";
+        msg.style.display = "block";
         return;
     }
-
-    // Never let an old watch continue sending GPS for the previous bus.
-    if (driverWatchId !== null) {
-        await stopSharingLocation();
-    }
-
-    message.textContent = "Selecting bus...";
     try {
-        const response = await fetch("/api/driver/select-bus", {
+        const res = await fetch("/api/driver/bus/capacity", {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({bus_id: Number(busId)})
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ capacity: val })
         });
-        const data = await response.json();
-        if (response.ok && data.success) {
-            message.textContent = `✅ ${data.bus_number} selected successfully. Now press Start Location Sharing.`;
-            document.getElementById("gpsStatus").textContent = "🔴 Location sharing is OFF";
-            document.getElementById("driverLatitude").textContent = "---";
-            document.getElementById("driverLongitude").textContent = "---";
-            document.getElementById("driverUpdated").textContent = "---";
+        const data = await res.json();
+        if (data.success) {
+            msg.textContent = "✅ " + data.message;
+            msg.style.color = "#15803d";
+            msg.style.display = "block";
+            setTimeout(() => { msg.style.display = "none"; }, 4000);
         } else {
-            message.textContent = data.message || "Unable to select bus.";
+            msg.textContent = "❌ " + (data.message || "Failed to update capacity.");
+            msg.style.color = "#b91c1c";
+            msg.style.display = "block";
         }
-    } catch (error) {
-        console.error(error);
-        message.textContent = "❌ Unable to connect to server.";
+    } catch (e) {
+        msg.textContent = "Network error while saving capacity.";
+        msg.style.color = "#b91c1c";
+        msg.style.display = "block";
     }
 }
-
-async function sendDriverLocation(position, busNumber) {
-    const latitude = position.coords.latitude;
-    const longitude = position.coords.longitude;
-    document.getElementById("driverLatitude").textContent = latitude.toFixed(6);
-    document.getElementById("driverLongitude").textContent = longitude.toFixed(6);
-    document.getElementById("gpsStatus").textContent = "🟢 Location sharing is ACTIVE";
-
-    try {
-        const response = await fetch("/api/location/update", {
-            method: "POST",
-            headers: {"Content-Type": "application/json", "Accept": "application/json"},
-            cache: "no-store",
-            body: JSON.stringify({
-                bus_number: busNumber,
-                latitude: latitude,
-                longitude: longitude,
-                bus_status: document.getElementById("driverBusStatus").value || "ON_ROUTE",
-                sharing_expires_at: sharingExpiresAt
-            })
-        });
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-            document.getElementById("gpsStatus").textContent = "⚠️ " + (data.message || "Location update rejected.");
-            return false;
-        }
-        document.getElementById("driverUpdated").textContent = data.updated_at || "---";
-        return true;
-    } catch (error) {
-        console.error("Location update failed:", error);
-        document.getElementById("gpsStatus").textContent = "⚠️ GPS received, but server update failed.";
-        return false;
-    }
-}
-
-function startSharingLocation() {
-    const busNumber = document.getElementById("driverBusNumber").value;
-    const status = document.getElementById("gpsStatus");
-    if (!busNumber) { alert("Please select a bus first."); return; }
-    if (!navigator.geolocation) { alert("GPS is not supported by this browser."); return; }
-
-    const minutes = Number(document.getElementById("sharingDuration").value || 0);
-    sharingExpiresAt = minutes > 0 ? new Date(Date.now() + minutes * 60000).toISOString() : null;
-    status.textContent = "📍 Getting your current GPS location...";
-
-    if (driverWatchId !== null) navigator.geolocation.clearWatch(driverWatchId);
-
-    const options = {enableHighAccuracy: true, maximumAge: 0, timeout: 15000};
-
-    // Send the first GPS point immediately instead of waiting for watchPosition.
-    navigator.geolocation.getCurrentPosition(async function(position) {
-        const ok = await sendDriverLocation(position, busNumber);
-        if (!ok) {
-            status.textContent = "⚠️ Server rejected the location. Check that this bus is selected.";
-            return;
-        }
-
-        driverWatchId = navigator.geolocation.watchPosition(
-            async function(pos) {
-                if (sharingExpiresAt && Date.now() >= new Date(sharingExpiresAt).getTime()) {
-                    await stopSharingLocation();
-                    return;
-                }
-                await sendDriverLocation(pos, busNumber);
-            },
-            function(error) {
-                console.error("GPS watch error:", error);
-                status.textContent = "⚠️ Live sharing started, but GPS update failed: " + (error.message || "unknown error");
-            },
-            options
-        );
-    }, function(error) {
-        console.error("GPS Error:", error);
-        sharingExpiresAt = null;
-        status.textContent = "❌ Unable to get GPS: " + (error.message || "Please allow location permission.");
-    }, options);
-
-    document.getElementById("startGpsButton").style.display = "none";
-    document.getElementById("stopGpsButton").style.display = "inline-block";
-}
-
-async function updateDriverBusStatus() {
-    const bus = document.getElementById("driverBusNumber").value;
-    const status = document.getElementById("driverBusStatus").value;
-    const message = document.getElementById("driverStatusMessage");
-    if (!bus) { alert("Please select a bus first."); return; }
-    message.textContent = "Updating bus status...";
-    try {
-        const response = await fetch("/api/location/status/" + encodeURIComponent(bus), {
-            method:"POST", headers:{"Content-Type":"application/json","Accept":"application/json"},
-            body:JSON.stringify({bus_status:status})
-        });
-        const data = await response.json();
-        message.textContent = response.ok && data.success ? "✅ Bus status updated: " + status.replaceAll("_"," ") : (data.message || "Unable to update status.");
-    } catch (error) { message.textContent = "❌ Unable to connect to server."; }
-}
-
-async function stopSharingLocation() {
-    if (driverWatchId !== null) {
-        navigator.geolocation.clearWatch(driverWatchId);
-        driverWatchId = null;
-    }
-    sharingExpiresAt = null;
-    document.getElementById("gpsStatus").textContent = "🔴 Location sharing is OFF";
-    document.getElementById("startGpsButton").style.display = "inline-block";
-    document.getElementById("stopGpsButton").style.display = "none";
-    const busNumber = document.getElementById("driverBusNumber").value;
-    if (busNumber) {
-        try { await fetch("/api/location/stop/" + encodeURIComponent(busNumber), {method:"POST"}); }
-        catch (error) { console.error("Unable to stop location on server:", error); }
-    }
-}
-
-// ==========================================
-// LOAD DRIVER PAGE
-// ==========================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
-
-        loadDriverBuses();
-
-    }
-);
 
 </script>
 
 </body>
+
 </html>

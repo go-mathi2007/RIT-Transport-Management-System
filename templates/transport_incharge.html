@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport Incharge Dashboard - RIT Transport</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
+    <style>
+        :root {
+            --primary: #075fce;
+            --primary-dark: #064da6;
+            --primary-light: #e8f2ff;
+            --dark: #082d5c;
+            --gray-100: #f8fafc;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --success: #15803d;
+            --danger: #b91c1c;
+            --warning: #b45309;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+        }
+
+        body {
+            background: #f1f5f9;
+            color: var(--dark);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--dark);
+            line-height: 1.1;
+        }
+
+        .metric-card.alert-card {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        .metric-card.alert-card .metric-value {
+            color: var(--danger);
+        }
+
+        .nav-tabs-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: #ffffff;
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--gray-700);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(7, 95, 206, 0.25);
+        }
+
+        .tab-badge {
+            background: rgba(0,0,0,0.15);
+            padding: 2px 7px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .tab-pane {
+            display: none;
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 20px rgba(8, 45, 92, 0.05);
+            margin-bottom: 40px;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid var(--gray-200);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--gray-200);
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover {
+            background: #f8fbff;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .badge-live { background: #dcfce7; color: #15803d; }
+        .badge-offline { background: #f1f5f9; color: #64748b; }
+        .badge-late { background: #fee2e2; color: #b91c1c; }
+        .badge-ontime { background: #e0f2fe; color: #0369a1; }
+        .badge-full { background: #fee2e2; color: #991b1b; }
+        .badge-avail { background: #dcfce7; color: #166534; }
+        .badge-emergency { background: #7f1d1d; color: #ffffff; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-input {
+            padding: 8px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .filter-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-ack { background: #fef3c7; color: #b45309; }
+        .btn-ack:hover { background: #fde68a; }
+        .btn-res { background: #dcfce7; color: #15803d; }
+        .btn-res:hover { background: #bbf7d0; }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-content">
+        <div class="brand portal-brand">
+            <div class="portal-logo-wrap">
+                <img src="{{ url_for('static', filename='rit-logo.png') }}" alt="RIT" class="portal-logo">
+            </div>
+            <div class="portal-brand-text">
+                <h1>BUSMATE</h1>
+                <p>TRANSPORT INCHARGE &bull; ALL-BUS FLEET OPERATIONS</p>
+            </div>
+        </div>
+
+        <div class="portal-actions">
+            <span class="role-chip" style="background:#e0f2fe; color:#0369a1;">🛡️ Incharge: {{ user_name }} ({{ employee_id }})</span>
+            <a href="/logout" class="logout-btn">🚪 Logout</a>
+        </div>
+    </div>
+</header>
+
+<main class="container" style="padding-top:24px; padding-bottom:60px;">
+
+    <!-- TOP ALERT BANNER -->
+    <div id="inchargeGlobalAlert" class="alert-box" style="display:none; margin-bottom:16px;"></div>
+
+    <!-- METRICS GRID -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <span class="metric-label">Total Buses</span>
+            <span class="metric-value" id="mTotalBuses">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Active Buses</span>
+            <span class="metric-value" id="mActiveBuses" style="color:var(--success);">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Inactive Buses</span>
+            <span class="metric-value" id="mInactiveBuses" style="color:var(--gray-500);">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Live Tracking</span>
+            <span class="metric-value" id="mTrackingBuses" style="color:var(--primary);">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Not Sharing GPS</span>
+            <span class="metric-value" id="mNotTrackingBuses">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Delayed Buses</span>
+            <span class="metric-value" id="mDelayedBuses" style="color:var(--warning);">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Full Buses</span>
+            <span class="metric-value" id="mFullBuses" style="color:var(--danger);">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Active Drivers</span>
+            <span class="metric-value" id="mActiveDrivers">--</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Total Boarded Today</span>
+            <span class="metric-value" id="mTotalBoarded">--</span>
+        </div>
+        <div class="metric-card alert-card">
+            <span class="metric-label">🚨 Pending SOS</span>
+            <span class="metric-value" id="mPendingSos">--</span>
+        </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs-bar">
+        <button class="tab-btn active" onclick="switchInchargeTab('overviewPane')">📊 Overview</button>
+        <button class="tab-btn" onclick="switchInchargeTab('allBusStatusPane')">🚌 All Bus Status</button>
+        <button class="tab-btn" onclick="switchInchargeTab('liveTrackingPane')">📡 Live Bus Tracking</button>
+        <button class="tab-btn" onclick="switchInchargeTab('seatAvailabilityPane')">💺 Seat Availability</button>
+        <button class="tab-btn" onclick="switchInchargeTab('busFullAlertsPane')">🚨 Bus Full Alerts</button>
+        <button class="tab-btn" onclick="switchInchargeTab('delayAlertsPane')">⚠️ Delay Alerts</button>
+        <button class="tab-btn" onclick="switchInchargeTab('etaMonitoringPane')">⏱️ ETA Monitoring</button>
+        <button class="tab-btn" onclick="switchInchargeTab('emergencyAlertsPane')">🆘 Emergency Alerts</button>
+        <button class="tab-btn" onclick="switchInchargeTab('notificationsPane')">🔔 Notifications <span id="notifBadge" class="tab-badge" style="display:none;">0</span></button>
+        <button class="tab-btn" onclick="switchInchargeTab('profilePane')">👤 Profile</button>
+    </nav>
+
+    <!-- 1. OVERVIEW PANE -->
+    <div id="overviewPane" class="tab-pane active">
+        <div class="section-header">
+            <div>
+                <h2>📊 Campus Transport Operations Overview</h2>
+                <p>Real-time campus-wide status across all official RIT buses, live tracking updates, and pending operational alerts.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadInchargeSummary(true)">🔄 Refresh Metrics</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px;">
+            <div style="background:#f8fafc; border:1px solid var(--gray-200); border-radius:12px; padding:20px;">
+                <h3 style="font-size:15px; margin-bottom:12px; color:var(--dark);">🚨 Global Emergency Alerts</h3>
+                <div id="overviewEmergencyList"><div style="color:#64748b; font-size:13px;">No active emergency alerts.</div></div>
+            </div>
+            <div style="background:#f8fafc; border:1px solid var(--gray-200); border-radius:12px; padding:20px;">
+                <h3 style="font-size:15px; margin-bottom:12px; color:var(--dark);">⚠️ Active Delay Reports</h3>
+                <div id="overviewDelayList"><div style="color:#64748b; font-size:13px;">No active delays reported.</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. ALL BUS STATUS PANE -->
+    <div id="allBusStatusPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>🚌 All Bus Status Monitoring</h2>
+                <p>Complete status table of all 52 campus buses derived from actual database records and live GPS tracking.</p>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <input type="text" id="busSearchInput" class="filter-input" placeholder="🔍 Search bus number or route..." oninput="filterAllBuses()">
+            <select id="busStatusFilter" class="filter-input" onchange="filterAllBuses()">
+                <option value="ALL">All Statuses</option>
+                <option value="TRACKING">Live Tracking</option>
+                <option value="DELAYED">Delayed / Running Late</option>
+                <option value="FULL">Bus Full</option>
+                <option value="EMERGENCY">Emergency</option>
+            </select>
+            <button class="btn-action btn-ack" onclick="loadAllBusStatus()">🔄 Refresh Status</button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Route Name</th>
+                        <th>Bus Status</th>
+                        <th>Tracking</th>
+                        <th>Delay Status</th>
+                        <th>Capacity Status</th>
+                        <th>Total Boarded Today</th>
+                        <th>Scheduled Arrival</th>
+                        <th>Estimated Arrival</th>
+                        <th>Emergency Status</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="allBusStatusTableBody">
+                    <tr><td colspan="11" style="text-align:center; padding:20px; color:#64748b;">Loading all bus statuses...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. LIVE BUS TRACKING PANE -->
+    <div id="liveTrackingPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>📡 All-Bus Live GPS Tracking</h2>
+                <p>Select any college bus to view real-time location coordinates, trip status, and recent GPS trajectory.</p>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <select id="trackBusSelect" class="filter-input" onchange="trackSelectedBus()" style="min-width:260px;">
+                <option value="">-- Choose Bus to Track --</option>
+            </select>
+            <button class="btn-action btn-ack" onclick="trackSelectedBus()">📡 View Live Location</button>
+        </div>
+
+        <div id="liveBusDisplay" style="margin-top:20px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:24px; text-align:center; color:#64748b;">
+                Select a bus from the dropdown above to inspect real-time operational location.
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. SEAT AVAILABILITY PANE -->
+    <div id="seatAvailabilityPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>💺 Campus Seat Availability & Boarding Counts</h2>
+                <p>Seating capacity vs total boarded today across all campus buses. Boarding count updates in real-time from QR attendance.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadSeatAvailability()">🔄 Refresh Counts</button>
+        </div>
+
+        <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Route Name</th>
+                        <th>Configured Capacity</th>
+                        <th>Total Boarded Today</th>
+                        <th>Capacity Status</th>
+                    </tr>
+                </thead>
+                <tbody id="seatAvailabilityTableBody">
+                    <tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">Loading seat availability...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 5. BUS FULL ALERTS PANE -->
+    <div id="busFullAlertsPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>🚨 Campus Bus Full Alerts</h2>
+                <p>Global alerts for all buses across the college that have reached their configured maximum seating capacity.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadSeatAvailability()">🔄 Refresh Alerts</button>
+        </div>
+
+        <div id="busFullAlertsContainer" style="margin-top:16px;">
+            <div style="text-align:center; padding:20px; color:#64748b;">Checking for buses that have reached capacity...</div>
+        </div>
+    </div>
+
+    <!-- 6. DELAY ALERTS PANE -->
+    <div id="delayAlertsPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>⚠️ Global Delay Alerts & Status Management</h2>
+                <p>Campus-wide delay reports from drivers and automatic ETA detections across all college buses.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadDelayReports()">🔄 Refresh Delays</button>
+        </div>
+
+        <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Route Name</th>
+                        <th>Delay Reason</th>
+                        <th>Expected Delay</th>
+                        <th>Reported Time</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="delayAlertsTableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">Loading delay reports...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 7. ETA MONITORING PANE -->
+    <div id="etaMonitoringPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>⏱️ Smart ETA & Campus Arrival Supervision</h2>
+                <p>Real-time comparison between scheduled campus arrival time and estimated arrival derived from live GPS coordinates.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadAllBusStatus()">🔄 Refresh ETAs</button>
+        </div>
+
+        <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Route Name</th>
+                        <th>Scheduled Campus Arrival</th>
+                        <th>Estimated Campus Arrival</th>
+                        <th>Delay Status</th>
+                        <th>Tracking Status</th>
+                    </tr>
+                </thead>
+                <tbody id="etaMonitoringTableBody">
+                    <tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Loading ETA metrics...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 8. EMERGENCY ALERTS PANE -->
+    <div id="emergencyAlertsPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>🆘 Global Emergency SOS Alerts</h2>
+                <p>Critical driver emergency alerts triggered from any campus vehicle. Incharges can acknowledge and track resolution.</p>
+            </div>
+            <button class="btn-action btn-ack" onclick="loadEmergencyAlerts()">🔄 Refresh SOS Alerts</button>
+        </div>
+
+        <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Driver Name</th>
+                        <th>Emergency Type</th>
+                        <th>Reported Time</th>
+                        <th>Status</th>
+                        <th>Acknowledged By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="emergencyAlertsTableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">Loading emergency alerts...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 9. NOTIFICATIONS PANE -->
+    <div id="notificationsPane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>🔔 In-App Notifications & Operational Alerts</h2>
+                <p>Review all system-wide operational alerts, delay updates, and emergency broadcasts.</p>
+            </div>
+            <div>
+                <button class="btn-action btn-ack" onclick="enablePushNotifications()">🔔 Enable Web Push</button>
+                <button class="btn-action btn-res" onclick="markAllNotificationsRead()">✓ Mark All Read</button>
+            </div>
+        </div>
+
+        <div id="notificationsListContainer" style="margin-top:20px;">
+            <div style="text-align:center; padding:20px; color:#64748b;">Loading notifications...</div>
+        </div>
+    </div>
+
+    <!-- 10. PROFILE PANE -->
+    <div id="profilePane" class="tab-pane">
+        <div class="section-header">
+            <div>
+                <h2>👤 Transport Incharge Profile</h2>
+                <p>Operational account credentials and campus fleet supervisory permissions.</p>
+            </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:24px; max-width:600px; margin-top:20px;">
+            <p style="margin-bottom:10px;"><strong>Name:</strong> {{ user_name }}</p>
+            <p style="margin-bottom:10px;"><strong>Employee ID:</strong> {{ employee_id }}</p>
+            <p style="margin-bottom:10px;"><strong>Role:</strong> Transport Incharge (All-Bus Fleet Supervisor)</p>
+            <p style="margin-bottom:10px;"><strong>Scope:</strong> Campus-Wide Fleet Status & Emergency Monitoring</p>
+            <p style="margin-bottom:10px;"><strong>Institution:</strong> Rajalakshmi Institute of Technology</p>
+        </div>
+    </div>
+
+</main>
+
+<script>
+let allBusesData = [];
+
+function switchInchargeTab(paneId) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+    const target = document.getElementById(paneId);
+    if (target) target.classList.add('active');
+
+    const eventBtn = window.event ? window.event.currentTarget : null;
+    if (eventBtn && eventBtn.classList.contains('tab-btn')) {
+        eventBtn.classList.add('active');
+    }
+
+    if (paneId === 'allBusStatusPane' || paneId === 'etaMonitoringPane') loadAllBusStatus();
+    if (paneId === 'seatAvailabilityPane' || paneId === 'busFullAlertsPane') loadSeatAvailability();
+    if (paneId === 'delayAlertsPane') loadDelayReports();
+    if (paneId === 'emergencyAlertsPane') loadEmergencyAlerts();
+    if (paneId === 'notificationsPane') loadNotifications();
+    if (paneId === 'liveTrackingPane') populateTrackingDropdown();
+}
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function loadInchargeSummary(manual = false) {
+    try {
+        const res = await fetch('/api/incharge/dashboard-summary');
+        const data = await res.json();
+        if (data.success && data.metrics) {
+            const m = data.metrics;
+            document.getElementById('mTotalBuses').textContent = m.total_buses;
+            document.getElementById('mActiveBuses').textContent = m.active_buses;
+            document.getElementById('mInactiveBuses').textContent = m.inactive_buses;
+            document.getElementById('mTrackingBuses').textContent = m.tracking_buses;
+            document.getElementById('mNotTrackingBuses').textContent = m.not_tracking_buses;
+            document.getElementById('mDelayedBuses').textContent = m.delayed_buses;
+            document.getElementById('mFullBuses').textContent = m.full_buses;
+            document.getElementById('mActiveDrivers').textContent = m.active_drivers;
+            document.getElementById('mTotalBoarded').textContent = m.total_boarded_today;
+            document.getElementById('mPendingSos').textContent = m.pending_sos_count;
+
+            // Overview quick lists
+            const emBox = document.getElementById('overviewEmergencyList');
+            if (data.global_emergencies && data.global_emergencies.length > 0) {
+                emBox.innerHTML = data.global_emergencies.map(e => `
+                    <div style="padding:10px; margin-bottom:8px; border-left:4px solid var(--danger); background:#ffffff; border-radius:4px;">
+                        <strong>Bus ${escapeHTML(e.bus_number)}:</strong> ${escapeHTML(e.emergency_type)}
+                        <div style="font-size:12px; color:#64748b;">${escapeHTML(e.reported_at)} &bull; Status: <span class="badge ${e.status === 'PENDING' ? 'badge-emergency' : 'badge-ontime'}">${escapeHTML(e.status)}</span></div>
+                    </div>
+                `).join('');
+            } else {
+                emBox.innerHTML = '<div style="color:#64748b; font-size:13px;">No active emergency alerts.</div>';
+            }
+
+            const delBox = document.getElementById('overviewDelayList');
+            if (data.global_delays && data.global_delays.length > 0) {
+                delBox.innerHTML = data.global_delays.map(d => `
+                    <div style="padding:10px; margin-bottom:8px; border-left:4px solid var(--warning); background:#ffffff; border-radius:4px;">
+                        <strong>Bus ${escapeHTML(d.bus_number)}:</strong> ${escapeHTML(d.delay_reason)} (${escapeHTML(d.expected_delay)})
+                        <div style="font-size:12px; color:#64748b;">${escapeHTML(d.reported_at)} &bull; Status: ${escapeHTML(d.status)}</div>
+                    </div>
+                `).join('');
+            } else {
+                delBox.innerHTML = '<div style="color:#64748b; font-size:13px;">No active delays reported.</div>';
+            }
+        }
+    } catch (e) {
+        console.error("Error loading dashboard summary:", e);
+    }
+}
+
+async function loadAllBusStatus() {
+    try {
+        const res = await fetch('/api/incharge/all-bus-status');
+        const data = await res.json();
+        if (data.success && data.buses) {
+            allBusesData = data.buses;
+            renderAllBusStatusTable(allBusesData);
+            renderETAMonitoringTable(allBusesData);
+        }
+    } catch (e) {
+        console.error("Error loading all bus status:", e);
+    }
+}
+
+function renderAllBusStatusTable(buses) {
+    const tbody = document.getElementById('allBusStatusTableBody');
+    if (!tbody) return;
+
+    if (buses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:20px; color:#64748b;">No matching buses found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = buses.map(b => {
+        const isTracking = b.tracking_status === 'LIVE TRACKING';
+        const isFull = b.capacity_status === 'BUS FULL';
+        const isEmergency = b.emergency_status.includes('EMERGENCY');
+        const isLate = b.delay_status.includes('DELAY') || b.delay_status.includes('LATE');
+
+        return `
+            <tr>
+                <td><strong>Bus ${escapeHTML(b.bus_number)}</strong></td>
+                <td>${escapeHTML(b.route_name)}</td>
+                <td><span class="badge ${b.bus_active ? 'badge-live' : 'badge-offline'}">${b.bus_active ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                <td><span class="badge ${isTracking ? 'badge-live' : 'badge-offline'}">${escapeHTML(b.tracking_status)}</span></td>
+                <td><span class="badge ${isLate ? 'badge-late' : 'badge-ontime'}">${escapeHTML(b.delay_status)}</span></td>
+                <td><span class="badge ${isFull ? 'badge-full' : 'badge-avail'}">${escapeHTML(b.capacity_status)}</span></td>
+                <td><strong>${b.total_boarded_today}</strong> / ${b.capacity}<div style="font-size:11px; color:#64748b;">(🌅 ${b.morning_boarded || 0} &bull; 🌆 ${b.return_boarded || 0})</div></td>
+                <td>${escapeHTML(b.scheduled_arrival_time)}</td>
+                <td><strong>${escapeHTML(b.estimated_arrival_time)}</strong></td>
+                <td><span class="badge ${isEmergency ? 'badge-emergency' : 'badge-offline'}">${escapeHTML(b.emergency_status)}</span></td>
+                <td style="font-size:11px; color:#64748b;">${escapeHTML(b.last_updated)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterAllBuses() {
+    const q = (document.getElementById('busSearchInput')?.value || '').trim().toLowerCase();
+    const filter = document.getElementById('busStatusFilter')?.value || 'ALL';
+
+    const filtered = allBusesData.filter(b => {
+        const matchesQuery = b.bus_number.toLowerCase().includes(q) || b.route_name.toLowerCase().includes(q);
+        if (!matchesQuery) return false;
+
+        if (filter === 'TRACKING') return b.tracking_status === 'LIVE TRACKING';
+        if (filter === 'DELAYED') return b.delay_status.includes('DELAY') || b.delay_status.includes('LATE');
+        if (filter === 'FULL') return b.capacity_status === 'BUS FULL';
+        if (filter === 'EMERGENCY') return b.emergency_status.includes('EMERGENCY');
+        return true;
+    });
+
+    renderAllBusStatusTable(filtered);
+}
+
+function renderETAMonitoringTable(buses) {
+    const tbody = document.getElementById('etaMonitoringTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = buses.map(b => {
+        const isLate = b.delay_status.includes('DELAY') || b.delay_status.includes('LATE');
+        const isTracking = b.tracking_status === 'LIVE TRACKING';
+
+        return `
+            <tr>
+                <td><strong>Bus ${escapeHTML(b.bus_number)}</strong></td>
+                <td>${escapeHTML(b.route_name)}</td>
+                <td>${escapeHTML(b.scheduled_arrival_time)}</td>
+                <td><strong>${escapeHTML(b.estimated_arrival_time)}</strong></td>
+                <td><span class="badge ${isLate ? 'badge-late' : 'badge-ontime'}">${escapeHTML(b.delay_status)}</span></td>
+                <td><span class="badge ${isTracking ? 'badge-live' : 'badge-offline'}">${escapeHTML(b.tracking_status)}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function populateTrackingDropdown() {
+    const sel = document.getElementById('trackBusSelect');
+    if (!sel || sel.options.length > 1) return;
+
+    try {
+        const res = await fetch('/api/buses');
+        const data = await res.json();
+        if (data.success && data.buses) {
+            data.buses.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.bus_number;
+                opt.textContent = `Bus ${b.bus_number} - ${b.route_name}`;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error("Error populating tracking select:", e);
+    }
+}
+
+async function trackSelectedBus() {
+    const busNo = document.getElementById('trackBusSelect')?.value;
+    const display = document.getElementById('liveBusDisplay');
+    if (!busNo || !display) return;
+
+    display.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Querying operational location...</div>';
+
+    try {
+        const res = await fetch(`/api/bus-location/${busNo}`);
+        const data = await res.json();
+        if (data.success) {
+            display.innerHTML = `
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:12px; margin-bottom:14px;">
+                        <div>
+                            <h3 style="margin:0; font-size:18px; color:var(--dark);">🚌 Bus ${escapeHTML(data.bus_number)} &bull; ${escapeHTML(data.route_name)}</h3>
+                            <p style="margin:4px 0 0; font-size:13px; color:#64748b;">Driver: <strong>${escapeHTML(data.driver_name || 'Assigned Driver')}</strong></p>
+                        </div>
+                        <span class="badge ${data.location_shared ? 'badge-live' : 'badge-offline'}">${data.location_shared ? 'TRANSMITTING' : 'OFFLINE'}</span>
+                    </div>
+
+                    ${data.location_shared ? `
+                        <p style="margin:6px 0;">📍 <strong>Current Location:</strong> ${escapeHTML(data.current_location || 'GPS location')}</p>
+                        <p style="margin:6px 0;">🛣️ <strong>Next Point:</strong> ${escapeHTML(data.next_point || 'En Route')}</p>
+                        <p style="margin:6px 0;">🧭 <strong>GPS Coordinates:</strong> ${data.latitude}, ${data.longitude}</p>
+                        <p style="margin:6px 0;">⏱️ <strong>Last Transmitted:</strong> ${escapeHTML(data.updated_at)}</p>
+                        <p style="margin:6px 0;">🚥 <strong>Trip Status:</strong> <span class="badge badge-ontime">${escapeHTML(data.bus_status || 'ON_ROUTE')}</span></p>
+                    ` : `
+                        <p style="color:#64748b; font-size:14px; margin-top:8px;">Driver has not started sharing live GPS location yet today.</p>
+                    `}
+                </div>
+            `;
+        } else {
+            display.innerHTML = '<div style="color:var(--danger); padding:20px; text-align:center;">Unable to fetch bus location.</div>';
+        }
+    } catch (e) {
+        display.innerHTML = '<div style="color:var(--danger); padding:20px; text-align:center;">Network error querying location.</div>';
+    }
+}
+
+async function loadSeatAvailability() {
+    try {
+        const res = await fetch('/api/buses/seat-availability');
+        const data = await res.json();
+        if (data.success && data.buses) {
+            const tbody = document.getElementById('seatAvailabilityTableBody');
+            if (tbody) {
+                tbody.innerHTML = data.buses.map(b => `
+                    <tr>
+                        <td><strong>Bus ${escapeHTML(b.bus_number)}</strong></td>
+                        <td>${escapeHTML(b.route_name)}</td>
+                        <td>${b.capacity} seats</td>
+                        <td><strong>${b.total_boarded_today}</strong> passengers<div style="font-size:11px; color:#64748b;">(🌅 ${b.morning_boarded || 0} &bull; 🌆 ${b.return_boarded || 0})</div></td>
+                        <td><span class="badge ${b.is_full ? 'badge-full' : 'badge-avail'}">${escapeHTML(b.status)}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Bus full alerts container
+            const fullContainer = document.getElementById('busFullAlertsContainer');
+            if (fullContainer) {
+                const fullBuses = data.buses.filter(b => b.is_full);
+                if (fullBuses.length > 0) {
+                    fullContainer.innerHTML = fullBuses.map(b => `
+                        <div style="background:#fef2f2; border:1px solid #fecaca; border-left:4px solid var(--danger); border-radius:8px; padding:16px; margin-bottom:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h4 style="margin:0; color:var(--danger);">🚨 Bus ${escapeHTML(b.bus_number)} has reached maximum capacity</h4>
+                                <span class="badge badge-full">BUS FULL</span>
+                            </div>
+                            <p style="margin:6px 0 0; font-size:13px; color:#7f1d1d;">Route: ${escapeHTML(b.route_name)} &bull; Total Boarded Today: <strong>${b.total_boarded_today}</strong> / ${b.capacity} seats configured.</p>
+                        </div>
+                    `).join('');
+                } else {
+                    fullContainer.innerHTML = '<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:18px; text-align:center; color:#166534;">✅ All campus buses currently have seats available. No bus full alerts.</div>';
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error loading seat availability:", e);
+    }
+}
+
+async function loadDelayReports() {
+    try {
+        const res = await fetch('/api/delay-reports');
+        const data = await res.json();
+        if (data.success && data.reports) {
+            const tbody = document.getElementById('delayAlertsTableBody');
+            if (!tbody) return;
+
+            if (data.reports.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">No delay reports recorded.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.reports.map(r => `
+                <tr>
+                    <td><strong>Bus ${escapeHTML(r.bus_number)}</strong></td>
+                    <td>${escapeHTML(r.route_name)}</td>
+                    <td>${escapeHTML(r.delay_reason)}</td>
+                    <td><strong>${escapeHTML(r.expected_delay)}</strong></td>
+                    <td style="font-size:12px;">${escapeHTML(r.reported_at)}</td>
+                    <td><span class="badge ${r.status === 'REPORTED' ? 'badge-late' : (r.status === 'UNDER_REVIEW' ? 'badge-ontime' : 'badge-avail')}">${escapeHTML(r.status)}</span></td>
+                    <td>
+                        ${r.status !== 'RESOLVED' ? `
+                            <button class="btn-action btn-ack" onclick="updateDelayStatus(${r.id}, 'UNDER_REVIEW')">Review</button>
+                            <button class="btn-action btn-res" onclick="updateDelayStatus(${r.id}, 'RESOLVED')">Resolve</button>
+                        ` : '<span style="color:#15803d; font-weight:700; font-size:12px;">✓ Resolved</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (e) {
+        console.error("Error loading delay reports:", e);
+    }
+}
+
+async function updateDelayStatus(reportId, newStatus) {
+    try {
+        const res = await fetch(`/api/delay-reports/${reportId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadDelayReports();
+            loadInchargeSummary();
+        }
+    } catch (e) {
+        alert("Unable to update delay status.");
+    }
+}
+
+async function loadEmergencyAlerts() {
+    try {
+        const res = await fetch('/api/emergency-alerts');
+        const data = await res.json();
+        if (data.success && data.alerts) {
+            const tbody = document.getElementById('emergencyAlertsTableBody');
+            if (!tbody) return;
+
+            if (data.alerts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">No emergency alerts recorded. All systems normal.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.alerts.map(a => `
+                <tr>
+                    <td><strong>Bus ${escapeHTML(a.bus_number)}</strong></td>
+                    <td>${escapeHTML(a.driver_name)}</td>
+                    <td><span class="badge badge-emergency">${escapeHTML(a.emergency_type)}</span></td>
+                    <td style="font-size:12px;">${escapeHTML(a.reported_at)}</td>
+                    <td><span class="badge ${a.status === 'PENDING' ? 'badge-emergency' : (a.status === 'ACKNOWLEDGED' ? 'badge-ontime' : 'badge-avail')}">${escapeHTML(a.status)}</span></td>
+                    <td>${escapeHTML(a.acknowledged_by || '--')}</td>
+                    <td>
+                        ${a.status === 'PENDING' ? `
+                            <button class="btn-action btn-ack" onclick="updateEmergencyStatus(${a.id}, 'ACKNOWLEDGED')">Acknowledge</button>
+                        ` : ''}
+                        ${a.status !== 'RESOLVED' ? `
+                            <button class="btn-action btn-res" onclick="updateEmergencyStatus(${a.id}, 'RESOLVED')">Resolve</button>
+                        ` : '<span style="color:#15803d; font-weight:700; font-size:12px;">✓ Resolved</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (e) {
+        console.error("Error loading emergency alerts:", e);
+    }
+}
+
+async function updateEmergencyStatus(alertId, newStatus) {
+    try {
+        const res = await fetch(`/api/emergency-alerts/${alertId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadEmergencyAlerts();
+            loadInchargeSummary();
+        }
+    } catch (e) {
+        alert("Unable to update emergency status.");
+    }
+}
+
+async function loadNotifications() {
+    try {
+        const res = await fetch('/api/notifications');
+        const data = await res.json();
+        if (data.success) {
+            const badge = document.getElementById('notifBadge');
+            if (badge) {
+                badge.textContent = data.unread_count;
+                badge.style.display = data.unread_count > 0 ? 'inline-block' : 'none';
+            }
+
+            const container = document.getElementById('notificationsListContainer');
+            if (!container) return;
+
+            if (!data.notifications || data.notifications.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">No notifications recorded.</div>';
+                return;
+            }
+
+            container.innerHTML = data.notifications.map(n => `
+                <div style="background:${n.is_read ? '#ffffff' : '#f0fdf4'}; border:1px solid ${n.is_read ? '#e2e8f0' : '#86efac'}; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <h4 style="margin:0; font-size:15px; color:var(--dark);">${escapeHTML(n.title)}</h4>
+                        <span style="font-size:12px; color:#64748b;">${escapeHTML(n.created_at)}</span>
+                    </div>
+                    <p style="margin:0; font-size:13px; color:#334155; line-height:1.5;">${escapeHTML(n.message)}</p>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error("Error loading notifications:", e);
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        await fetch('/api/notifications/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        loadNotifications();
+    } catch (e) {
+        console.error("Error marking read:", e);
+    }
+}
+
+function enablePushNotifications() {
+    if (!('Notification' in window)) {
+        alert("Browser notifications are not supported on this browser.");
+        return;
+    }
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            alert("✅ Browser notifications enabled for RIT Transport!");
+        } else {
+            alert("Notification permission denied or dismissed.");
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadInchargeSummary();
+    loadAllBusStatus();
+    loadNotifications();
+    // Periodic refresh every 30 seconds
+    setInterval(() => {
+        loadInchargeSummary();
+        loadNotifications();
+    }, 30000);
+});
+</script>
+
+</body>
+</html>
+

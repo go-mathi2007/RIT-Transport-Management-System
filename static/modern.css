@@ -69,14 +69,180 @@ body{min-height:100vh}
 /* Forms / buttons */
 input,select,textarea{border:1px solid #d5e1ee!important;border-radius:11px!important;background:#fbfdff!important;transition:.18s ease!important}
 input:focus,select:focus,textarea:focus{border-color:var(--bm-blue)!important;box-shadow:0 0 0 4px rgba(11,111,245,.10)!important;background:#fff!important}
-button,.btn-primary,.btn-success,.btn-danger,.btn-secondary,.btn-warning,.btn-light,.primary-btn{
-  border-radius:11px!important;font-weight:700!important;transition:transform .18s,box-shadow .18s,filter .18s!important
+/* =========================================================
+   COMPREHENSIVE HIGH-CONTRAST BUTTON TYPOGRAPHY & STYLING
+   ========================================================= */
+
+/* Base button properties */
+button, .btn-primary, .primary-btn, .btn-top, .btn-primary-action, .btn-submit,
+.btn-driver-login, .btn-edit-profile, .search-btn, .register-btn, .view-stops-btn,
+.btn-success, .btn-success-action, .btn-start, .btn-res,
+.btn-danger, .btn-danger-action, .btn-stop,
+.btn-warning, .btn-ack,
+.btn-secondary, .btn-secondary-action, .secondary-btn, .btn-light, .btn-tab, .tab-btn {
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px !important;
+  cursor: pointer !important;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
 }
-button:hover,.btn-primary:hover,.btn-success:hover,.btn-danger:hover,.btn-secondary:hover,.btn-warning:hover,.btn-light:hover,.primary-btn:hover{transform:translateY(-1px)!important;box-shadow:0 7px 16px rgba(20,54,92,.12)!important}
-.btn-primary,.primary-btn,button:not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-secondary):not(.btn-light){background:linear-gradient(135deg,#0b6ff5,#095bd0)!important}
-.btn-success{background:linear-gradient(135deg,#16a66a,#0f8c58)!important}
-.btn-danger{background:linear-gradient(135deg,#ef4b57,#d93643)!important}
-.btn-warning{background:linear-gradient(135deg,#f3a329,#e1830c)!important}
+
+/* 1. PRIMARY BLUE BUTTONS (Solid #ffffff white text, strong gradient, bold) */
+.btn-primary, .primary-btn, .btn-top, .btn-primary-action, .btn-submit,
+.btn-driver-login, .btn-edit-profile, .search-btn, .register-btn, .view-stops-btn,
+.login-box .right button,
+button:not(.btn-secondary):not(.btn-secondary-action):not(.secondary-btn):not(.btn-light):not(.btn-danger):not(.btn-danger-action):not(.btn-stop):not(.btn-success):not(.btn-success-action):not(.btn-start):not(.btn-res):not(.btn-warning):not(.btn-ack):not(.btn-tab):not(.tab-btn):not(.modal-close):not(.notif-bell-btn):not(.logout-btn) {
+  background: linear-gradient(135deg, #0b6ff5 0%, #095bd0 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #0852be !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(4, 25, 60, 0.35) !important;
+  box-shadow: 0 3px 10px rgba(9, 91, 208, 0.28) !important;
+}
+
+.btn-primary:hover, .primary-btn:hover, .btn-top:hover, .btn-primary-action:hover, .btn-submit:hover,
+.btn-driver-login:hover, .btn-edit-profile:hover, .search-btn:hover, .register-btn:hover, .view-stops-btn:hover,
+.login-box .right button:hover,
+button:not(.btn-secondary):not(.btn-secondary-action):not(.secondary-btn):not(.btn-light):not(.btn-danger):not(.btn-danger-action):not(.btn-stop):not(.btn-success):not(.btn-success-action):not(.btn-start):not(.btn-res):not(.btn-warning):not(.btn-ack):not(.btn-tab):not(.tab-btn):not(.modal-close):not(.notif-bell-btn):not(.logout-btn):hover {
+  background: linear-gradient(135deg, #095bd0 0%, #0647a6 100%) !important;
+  color: #ffffff !important;
+  border-color: #053b8c !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(9, 91, 208, 0.38) !important;
+}
+
+.btn-primary:active, .primary-btn:active, .btn-top:active, .btn-primary-action:active,
+button:not(.btn-secondary):not(.btn-secondary-action):not(.secondary-btn):not(.btn-light):not(.btn-danger):not(.btn-danger-action):not(.btn-stop):not(.btn-success):not(.btn-success-action):not(.btn-start):not(.btn-res):not(.btn-warning):not(.btn-ack):not(.btn-tab):not(.tab-btn):not(.modal-close):not(.notif-bell-btn):not(.logout-btn):active {
+  background: #0647a6 !important;
+  color: #ffffff !important;
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 6px rgba(9, 91, 208, 0.3) !important;
+}
+
+/* 2. SECONDARY / LIGHT BUTTONS (High contrast: Dark text on clean white background with visible border) */
+.btn-secondary, .btn-secondary-action, .secondary-btn, .btn-light {
+  background: #ffffff !important;
+  color: #075fce !important;
+  border: 1.5px solid #075fce !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(7, 95, 206, 0.08) !important;
+}
+
+.btn-secondary:hover, .btn-secondary-action:hover, .secondary-btn:hover, .btn-light:hover {
+  background: #f0f7ff !important;
+  color: #064da6 !important;
+  border-color: #064da6 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(7, 95, 206, 0.16) !important;
+}
+
+/* 3. DANGER / RED BUTTONS (High contrast: Solid white text on red) */
+.btn-danger, .btn-danger-action, .btn-stop {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(100, 10, 10, 0.35) !important;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.25) !important;
+}
+
+.btn-danger:hover, .btn-danger-action:hover, .btn-stop:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+  color: #ffffff !important;
+  border-color: #991b1b !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35) !important;
+}
+
+/* 4. SUCCESS / GREEN BUTTONS (High contrast: Solid white text on green) */
+.btn-success, .btn-success-action, .btn-start, .btn-res {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #166534 !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(10, 70, 25, 0.35) !important;
+  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.25) !important;
+}
+
+.btn-success:hover, .btn-success-action:hover, .btn-start:hover, .btn-res:hover {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%) !important;
+  color: #ffffff !important;
+  border-color: #14532d !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35) !important;
+}
+
+/* 5. WARNING / AMBER BUTTONS (High contrast: Solid white text on amber) */
+.btn-warning, .btn-ack {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #92400e !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(80, 40, 5, 0.35) !important;
+  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.25) !important;
+}
+
+.btn-warning:hover, .btn-ack:hover {
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%) !important;
+  color: #ffffff !important;
+  border-color: #78350f !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(217, 119, 6, 0.35) !important;
+}
+
+/* 6. TAB BUTTONS */
+.btn-tab, .tab-btn {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;
+}
+
+.btn-tab:hover, .tab-btn:hover {
+  background: #f8fafc !important;
+  color: #075fce !important;
+  border-color: #94a3b8 !important;
+}
+
+.btn-tab.active, .tab-btn.active {
+  background: linear-gradient(135deg, #0b6ff5 0%, #095bd0 100%) !important;
+  color: #ffffff !important;
+  border-color: #0852be !important;
+  box-shadow: 0 4px 12px rgba(9, 91, 208, 0.25) !important;
+}
+
+/* 7. MODAL CLOSE BUTTON */
+button.modal-close, .modal-close {
+  background: transparent !important;
+  border: none !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+button.modal-close:hover, .modal-close:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* 8. DISABLED BUTTONS (Muted background, muted readable text, non-clickable) */
+button:disabled, .btn:disabled, [disabled], .btn-primary:disabled, .primary-btn:disabled,
+button[disabled], input[type="submit"]:disabled {
+  background: #e2e8f0 !important;
+  color: #64748b !important;
+  border: 1px solid #cbd5e1 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 0.7 !important;
+  text-shadow: none !important;
+  pointer-events: none !important;
+}
 
 /* Tables / route cards */
 table{border-collapse:separate!important;border-spacing:0!important;overflow:hidden!important;border:1px solid var(--bm-line)!important;border-radius:12px!important}

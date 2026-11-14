@@ -1,1020 +1,1243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>BusMate - Login</title>
-
-<style>
-
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-}
-
-body{
-    font-family:Arial,sans-serif;
-    min-height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    background:linear-gradient(
-        135deg,
-        #2563eb,
-        #38bdf8
-    );
-
-    padding:25px;
-}
-
-
-/* =========================================================
-   MAIN LOGIN CARD
-   ========================================================= */
-
-.login-box{
-
-    width:950px;
-    max-width:100%;
-
-    display:grid;
-    grid-template-columns:1fr 1fr;
-
-    background:white;
-
-    border-radius:22px;
-
-    overflow:hidden;
-
-    box-shadow:
-        0 25px 60px rgba(0,0,0,.25);
-}
-
-
-/* =========================================================
-   LEFT SIDE
-   ========================================================= */
-
-.left{
-
-    background:linear-gradient(
-        145deg,
-        #1e40af,
-        #2563eb,
-        #0ea5e9
-    );
-
-    color:white;
-
-    padding:50px;
-
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-
-    position:relative;
-    overflow:hidden;
-}
-
-
-/* Decorative circles */
-
-.left::before{
-
-    content:"";
-
-    position:absolute;
-
-    width:250px;
-    height:250px;
-
-    border-radius:50%;
-
-    background:rgba(255,255,255,.06);
-
-    top:-80px;
-    left:-80px;
-}
-
-.left::after{
-
-    content:"";
-
-    position:absolute;
-
-    width:220px;
-    height:220px;
-
-    border-radius:50%;
-
-    background:rgba(255,255,255,.05);
-
-    bottom:-100px;
-    right:-80px;
-}
-
-
-.logo{
-
-    font-size:70px;
-
-    margin-bottom:10px;
-
-    position:relative;
-    z-index:1;
-}
-
-
-.left h1{
-
-    font-size:48px;
-
-    margin-bottom:8px;
-
-    position:relative;
-    z-index:1;
-}
-
-
-.left h3{
-
-    font-size:20px;
-
-    font-weight:normal;
-
-    margin-bottom:22px;
-
-    opacity:.95;
-
-    position:relative;
-    z-index:1;
-}
-
-
-.left p{
-
-    font-size:15px;
-
-    line-height:1.7;
-
-    max-width:400px;
-
-    opacity:.9;
-
-    position:relative;
-    z-index:1;
-}
-
-
-/* =========================================================
-   FEATURES
-   ========================================================= */
-
-.features{
-
-    margin-top:32px;
-
-    display:flex;
-    flex-direction:column;
-
-    gap:16px;
-
-    position:relative;
-    z-index:1;
-}
-
-
-.feature{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:15px;
-
-    font-size:16px;
-}
-
-
-.feature-icon{
-
-    width:42px;
-    height:42px;
-
-    display:flex;
-
-    align-items:center;
-    justify-content:center;
-
-    background:rgba(255,255,255,.18);
-
-    border-radius:12px;
-
-    font-size:20px;
-
-    flex-shrink:0;
-}
-
-
-.feature-text{
-
-    display:flex;
-    flex-direction:column;
-
-    gap:3px;
-}
-
-
-.feature-title{
-
-    font-weight:bold;
-}
-
-
-.feature-description{
-
-    font-size:12px;
-
-    opacity:.75;
-}
-
-
-/* =========================================================
-   RIGHT SIDE
-   ========================================================= */
-
-.right{
-
-    padding:50px;
-
-    background:white;
-}
-
-
-.right h2{
-
-    font-size:32px;
-
-    color:#0f172a;
-
-    margin-bottom:8px;
-}
-
-
-.sub{
-
-    color:#64748b;
-
-    margin-bottom:28px;
-
-    font-size:15px;
-}
-
-
-/* =========================================================
-   MESSAGE
-   ========================================================= */
-
-.message{
-
-    display:none;
-
-    padding:12px 14px;
-
-    margin-bottom:18px;
-
-    border-radius:10px;
-
-    font-size:14px;
-
-    background:#fee2e2;
-
-    color:#991b1b;
-
-    border:1px solid #fecaca;
-}
-
-
-/* =========================================================
-   FORM
-   ========================================================= */
-
-label{
-
-    display:block;
-
-    font-weight:bold;
-
-    color:#334155;
-
-    margin:17px 0 7px;
-}
-
-
-input,
-select{
-
-    width:100%;
-
-    padding:14px 15px;
-
-    border:1px solid #cbd5e1;
-
-    border-radius:10px;
-
-    font-size:15px;
-
-    outline:none;
-
-    background:#f8fafc;
-
-    transition:.2s;
-}
-
-
-input:focus,
-select:focus{
-
-    border-color:#2563eb;
-
-    box-shadow:
-        0 0 0 3px rgba(37,99,235,.12);
-
-    background:white;
-}
-
-
-select{
-
-    cursor:pointer;
-}
-
-
-/* =========================================================
-   LOGIN BUTTON
-   ========================================================= */
-
-button{
-
-    width:100%;
-
-    padding:15px;
-
-    margin-top:25px;
-
-    border:0;
-
-    border-radius:10px;
-
-    background:linear-gradient(
-        135deg,
-        #2563eb,
-        #1d4ed8
-    );
-
-    color:white;
-
-    font-size:16px;
-
-    font-weight:bold;
-
-    cursor:pointer;
-
-    transition:.2s;
-}
-
-
-button:hover{
-
-    transform:translateY(-1px);
-
-    box-shadow:
-        0 8px 20px rgba(37,99,235,.25);
-}
-
-
-button:disabled{
-
-    opacity:.7;
-
-    cursor:not-allowed;
-
-    transform:none;
-
-    box-shadow:none;
-}
-
-
-/* =========================================================
-   SECURITY BOX
-   ========================================================= */
-
-.security{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:12px;
-
-    margin-top:25px;
-
-    padding:15px;
-
-    background:#f8fafc;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:10px;
-}
-
-
-.security-icon{
-
-    font-size:25px;
-}
-
-
-.security-text{
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:3px;
-}
-
-
-.security-title{
-
-    color:#1d4ed8;
-
-    font-weight:bold;
-
-    font-size:14px;
-}
-
-
-.security-description{
-
-    color:#64748b;
-
-    font-size:12px;
-
-    line-height:1.4;
-}
-
-
-/* =========================================================
-   REGISTER
-   ========================================================= */
-
-.register{
-
-    text-align:center;
-
-    margin-top:25px;
-
-    padding-top:20px;
-
-    border-top:1px solid #e2e8f0;
-}
-
-
-.register p{
-
-    color:#64748b;
-
-    margin-bottom:12px;
-}
-
-
-.register a{
-
-    color:#2563eb;
-
-    text-decoration:none;
-
-    font-size:14px;
-
-    font-weight:bold;
-
-    margin:0 7px;
-}
-
-
-.register a:hover{
-
-    text-decoration:underline;
-}
-
-
-/* =========================================================
-   FOOTER
-   ========================================================= */
-
-.footer{
-
-    text-align:center;
-
-    margin-top:25px;
-
-    color:#94a3b8;
-
-    font-size:11px;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media(max-width:700px){
-
-    body{
-        padding:15px;
-    }
-
-    .login-box{
-
-        grid-template-columns:1fr;
-
-    }
-
-    .left{
-
-        text-align:center;
-
-        padding:35px 25px;
-    }
-
-    .left h1{
-
-        font-size:38px;
-    }
-
-    .left h3{
-
-        font-size:17px;
-    }
-
-    .left p{
-
-        margin:auto;
-    }
-
-    .features{
-
-        text-align:left;
-
-        max-width:320px;
-
-        margin-left:auto;
-        margin-right:auto;
-    }
-
-    .right{
-
-        padding:30px 25px;
-    }
-
-}
-
-
-
-/* Crisp RIT branding on the login page. */
-.login-box .left .login-branding{
-    width:min(470px,100%);
-    height:auto;
-    margin:0 0 22px;
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    gap:10px;
-    background:none!important;
-    position:relative;
-    z-index:1;
-}
-.login-box .left .login-branding img{
-    display:block;
-    width:min(440px,100%);
-    height:auto;
-    max-height:105px;
-    object-fit:contain;
-    object-position:left center;
-    image-rendering:auto;
-}
-.login-box .left .institute-name{
-    display:flex;
-    flex-direction:column;
-    gap:1px;
-    color:#fff;
-    line-height:1.08;
-    letter-spacing:1.5px;
-    font-weight:800;
-    text-shadow:0 1px 2px rgba(0,0,0,.18);
-}
-.login-box .left .institute-name span:first-child{font-size:20px;}
-.login-box .left .institute-name span:last-child{font-size:14px;letter-spacing:1.8px;font-weight:600;}
-@media (max-width:650px){
-    .login-box .left .login-branding{align-items:center;}
-    .login-box .left .login-branding img{width:min(390px,100%);}
-    .login-box .left .institute-name{text-align:center;}
-}
-</style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BusMate - RIT Transport Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
+    <style>
+        :root {
+            --primary: #075fce;
+            --primary-dark: #064da6;
+            --primary-light: #e8f2ff;
+            --accent: #f59e0b;
+            --dark: #0f243e;
+            --gray-700: #334155;
+            --gray-500: #64748b;
+            --gray-200: #e2e8f0;
+            --gray-100: #f8fafc;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --shadow-card: 0 20px 50px rgba(7, 34, 73, 0.14);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0b3260 0%, #0d5ea6 50%, #1588ca 100%);
+            padding: 24px;
+            color: var(--dark);
+        }
+
+        .auth-card {
+            width: 1050px;
+            max-width: 100%;
+            display: grid;
+            grid-template-columns: 42% 58%;
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            min-height: 700px;
+        }
+
+        /* LEFT SIDE BRANDING */
+        .brand-panel {
+            background: linear-gradient(150deg, #072a54 0%, #094a8f 55%, #0e72b9 100%);
+            color: #ffffff;
+            padding: 44px 38px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-panel::before {
+            content: "";
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 260px;
+            height: 260px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+        }
+
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            bottom: -90px;
+            left: -90px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+        }
+
+        .brand-header {
+            position: relative;
+            z-index: 1;
+        }
+
+        .rit-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .rit-badge img {
+            height: 30px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .rit-badge span {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #ffffff;
+        }
+
+        .brand-panel h1 {
+            font-size: 38px;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-panel h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #dbeafe;
+            margin-bottom: 16px;
+        }
+
+        .brand-panel p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            margin-bottom: 30px;
+        }
+
+        .features-list {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .feature-icon {
+            font-size: 22px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .feature-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .feature-desc {
+            font-size: 12px;
+            color: #93c5fd;
+        }
+
+        .brand-footer {
+            position: relative;
+            z-index: 1;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 24px;
+        }
+
+        /* RIGHT SIDE FORM PANEL */
+        .form-panel {
+            padding: 40px 45px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+
+        /* TAB CONTROLS */
+        .tab-controls {
+            display: flex;
+            background: var(--gray-100);
+            border-radius: var(--radius-md);
+            padding: 5px;
+            margin-bottom: 26px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 11px 16px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gray-500);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: #ffffff;
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(7, 95, 206, 0.12);
+        }
+
+        .view-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 6px;
+        }
+
+        .view-sub {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-bottom: 22px;
+        }
+
+        .alert-box {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* FORM GRIDS & INPUTS */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px 18px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .required { color: #dc2626; }
+
+        input, select {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            font-size: 14px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: 9px;
+            background: #ffffff;
+            color: var(--dark);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(7, 95, 206, 0.15);
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            height: 46px;
+            margin-top: 18px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(7, 95, 206, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(7, 95, 206, 0.32);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-footer {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .form-footer a {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .role-selector-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .role-pill {
+            flex: 1;
+            padding: 9px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: 9px;
+            background: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gray-700);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .role-pill.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #ffffff;
+            width: 480px;
+            max-width: 100%;
+            border-radius: var(--radius-lg);
+            padding: 34px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--gray-500);
+            cursor: pointer;
+        }
+
+        .helper-text {
+            font-size: 11px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+
+        @media (max-width: 860px) {
+            .auth-card {
+                grid-template-columns: 1fr;
+            }
+            .brand-panel {
+                padding: 30px;
+                min-height: 280px;
+            }
+            .features-list { display: none; }
+            .form-panel { padding: 30px 24px; max-height: none; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-
-
 <body>
 
+<div class="auth-card">
 
-<div class="login-box">
+    <!-- LEFT SIDE: RIT IDENTITY & FEATURES -->
+    <div class="brand-panel">
+        <div class="brand-header">
+            <div class="rit-badge">
+                <img src="{{ url_for('static', filename='rit-mark.png') }}" alt="RIT">
+                <span>RAJALAKSHMI INSTITUTE OF TECHNOLOGY</span>
+            </div>
+            <h1>RIT Transport</h1>
+            <h3>BusMate Smart Management</h3>
+            <p>Integrated transport management portal for students, faculty, drivers, and campus administrators.</p>
+        </div>
 
-
-    <!-- =====================================================
-         LEFT SIDE
-         ===================================================== -->
-
-    <div class="left">
-
-        <div class="logo login-branding">
-            <img src="{{ url_for('static', filename='rit-mark.png') }}" alt="RIT - Rajalakshmi Institute of Technology">
-            <div class="institute-name" aria-label="Rajalakshmi Institute of Technology">
-                <span>RAJALAKSHMI</span>
-                <span>INSTITUTE OF TECHNOLOGY</span>
+        <div class="features-list">
+            <div class="feature-item">
+                <div class="feature-icon">🚌</div>
+                <div>
+                    <div class="feature-title">Bus Routes & Stops</div>
+                    <div class="feature-desc">Detailed morning and return schedules</div>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📍</div>
+                <div>
+                    <div class="feature-title">Dynamic Boarding Points</div>
+                    <div class="feature-desc">Accurate pickup point registration</div>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📡</div>
+                <div>
+                    <div class="feature-title">Live Bus Tracking</div>
+                    <div class="feature-desc">Real-time driver location on campus map</div>
+                </div>
             </div>
         </div>
 
-        <h1>
-            BusMate
-        </h1>
+        <div class="brand-footer">
+            &copy; 2026 Rajalakshmi Institute of Technology &middot; Transport Portal
+        </div>
+    </div>
 
-        <h3>
-            RIT Transport Management System
-        </h3>
+    <!-- RIGHT SIDE: LOGIN / REGISTER -->
+    <div class="form-panel">
 
-        <p>
-            Smart campus transportation management
-            for students, faculty, drivers and administrators.
-        </p>
+        <!-- TAB SWITCHER: LOGIN vs REGISTER -->
+        <div class="tab-controls">
+            <button type="button" class="tab-btn active" id="tabLogin" onclick="switchAuthView('login')">🔐 Access Login</button>
+            <button type="button" class="tab-btn" id="tabRegister" onclick="switchAuthView('register')">📝 New Registration</button>
+        </div>
 
+        <!-- NOTIFICATION ALERTS -->
+        <div id="authAlert" class="alert-box"></div>
 
-        <!-- FEATURES -->
+        <!-- ==============================================
+             LOGIN VIEW
+        =============================================== -->
+        <div id="loginView">
+            <div class="view-title">Welcome Back 👋</div>
+            <div class="view-sub">Sign in to your registered RIT Transport account.</div>
 
-        <div class="features">
-
-
-            <div class="feature">
-
-                <div class="feature-icon">
-                    🚌
-                </div>
-
-                <div class="feature-text">
-
-                    <div class="feature-title">
-                        Bus Routes
-                    </div>
-
-                    <div class="feature-description">
-                        View all available bus routes
-                    </div>
-
-                </div>
-
+            <!-- PORTAL ROLE SELECTOR -->
+            <div class="role-selector-bar" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <div class="role-pill selected" id="rolePillStudent" onclick="selectLoginRole('student')">🎓 Student</div>
+                <div class="role-pill" id="rolePillFaculty" onclick="selectLoginRole('faculty')">👨‍🏫 Faculty</div>
+                <div class="role-pill" id="rolePillAdmin" onclick="selectLoginRole('admin')">🛠️ Admin / Incharge</div>
+                <div class="role-pill" id="rolePillDriver" onclick="selectLoginRole('driver')">🚌 Driver</div>
             </div>
 
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <input type="hidden" id="loginRole" name="loginRole" value="user">
 
-            <div class="feature">
-
-                <div class="feature-icon">
-                    📍
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label id="loginIdLabel">Register No / Employee ID / Email <span class="required">*</span></label>
+                    <input type="text" id="loginId" name="loginId" placeholder="Enter Reg No, Employee ID, or Email" required autocomplete="username">
                 </div>
 
-                <div class="feature-text">
+                <div class="form-group" style="margin-bottom:14px;">
+                    <label id="loginPassLabel">Password <span class="required">*</span></label>
+                    <div style="position:relative;">
+                        <input type="password" id="loginPassword" name="password" placeholder="Enter password" required autocomplete="current-password" style="padding-right:42px;">
+                        <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#64748b;" aria-label="Toggle password">👁️</button>
+                    </div>
+                </div>
 
-                    <div class="feature-title">
-                        Boarding Points
+                <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+                    <a href="javascript:void(0)" onclick="openForgotPasswordModal()" style="font-size:12px; color:var(--primary); font-weight:700; text-decoration:none;">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-submit" id="loginBtn">🔐 Sign In to Portal</button>
+
+                <div class="form-footer">
+                    Don't have an account yet? <a onclick="switchAuthView('register')">Register here</a>
+                </div>
+
+                <div style="text-align:center; margin-top:14px; padding-top:12px; border-top:1px dashed #e2e8f0; font-size:13px; color:#64748b;">
+                    New joiner or visitor? <a href="/visitor" style="color:var(--primary); font-weight:700; text-decoration:none;">Explore Bus Routes as Visitor &rarr;</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- ==============================================
+             REGISTRATION VIEW (PHASE 1 - #3)
+        =============================================== -->
+        <div id="registerView" style="display:none;">
+            <div class="view-title">Member Registration 📝</div>
+            <div class="view-sub">Create your transport account for campus bus access.</div>
+
+            <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
+                <div class="form-grid">
+
+                    <!-- 1. Role: Student or Faculty -->
+                    <div class="form-group full-width">
+                        <label>Register As <span class="required">*</span></label>
+                        <select id="regRole" name="role" required onchange="handleRoleChange()">
+                            <option value="student">🎓 Student</option>
+                            <option value="faculty">👨‍🏫 Faculty Member</option>
+                        </select>
                     </div>
 
-                    <div class="feature-description">
-                        Find your boarding locations
+                    <!-- 2. Full Name -->
+                    <div class="form-group">
+                        <label>Full Name <span class="required">*</span></label>
+                        <input type="text" id="regName" name="name" placeholder="Enter full name" required>
+                    </div>
+
+                    <!-- 3. Register Number / Employee ID -->
+                    <div class="form-group">
+                        <label id="regIdLabel">Register Number <span class="required">*</span></label>
+                        <input type="text" id="regRegisterNumber" name="register_number" placeholder="Enter register number" required>
+                    </div>
+
+                    <!-- 4. Email Address (Feature 8: Institutional @ritchennai.edu.in) -->
+                    <div class="form-group">
+                        <label>Institutional College Email (@ritchennai.edu.in) <span class="required">*</span></label>
+                        <input type="email" id="regEmail" name="email" placeholder="example@ritchennai.edu.in" pattern="^[a-zA-Z0-9_.+-]+@ritchennai\.edu\.in$" title="Please enter your official college email ending in @ritchennai.edu.in" required>
+                    </div>
+
+                    <!-- 5. Mobile Number -->
+                    <div class="form-group">
+                        <label>Mobile Number <span class="required">*</span></label>
+                        <input type="tel" id="regMobile" name="mobile" placeholder="10-digit mobile number" maxlength="10" required>
+                    </div>
+
+                    <!-- 6. Department -->
+                    <div class="form-group full-width">
+                        <label>Course / Programme <span class="required">*</span></label>
+                        <select id="regDepartment" name="department" required>
+                            <option value="">Select Department</option>
+                        </select>
+                    </div>
+
+                    <!-- 7. Academic Year / Batch or Work Info -->
+                    <div class="form-group" id="regAcademicGroup">
+                        <label id="regAcademicLabel">Academic Batch <span class="required">*</span></label>
+                        <input type="text" id="regAcademicYear" name="academic_year" placeholder="Enter academic batch (e.g., 2026-2029)" required>
+                        <select id="regFacultyDesignation" style="display:none;">
+                            <option value="">Select Designation</option>
+                        </select>
+                    </div>
+
+                    <!-- Class / Section (Required for Students) -->
+                    <div class="form-group" id="regClassSectionGroup">
+                        <label>Class / Section <span class="required">*</span></label>
+                        <input type="text" id="regClassSection" name="class_section" placeholder="Enter your section (e.g., A, B, C)">
+                    </div>
+
+                    <!-- 8. Transport Details: Bus Number -->
+                    <div class="form-group">
+                        <label>Bus Number <span class="required">*</span></label>
+                        <select id="regBusId" name="bus_id" required onchange="handleBusSelectionChange()">
+                            <option value="">Loading buses...</option>
+                        </select>
+                        <span class="helper-text">Select your assigned bus</span>
+                    </div>
+
+                    <!-- Boarding Point (Dynamically populated based on selected bus) -->
+                    <div class="form-group">
+                        <label>Boarding Point <span class="required">*</span></label>
+                        <select id="regBoardingPointId" name="boarding_point_id" required>
+                            <option value="">Select bus first</option>
+                        </select>
+                        <span class="helper-text">Pickup stop for this bus</span>
+                    </div>
+
+                    <!-- 9. Create Password -->
+                    <div class="form-group">
+                        <label>Create Password <span class="required">*</span></label>
+                        <div style="position:relative;">
+                            <input type="password" id="regPassword" name="password" placeholder="At least 6 characters" minlength="6" required style="padding-right:42px;">
+                            <button type="button" onclick="togglePasswordVisibility('regPassword', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#64748b;" aria-label="Toggle password">👁️</button>
+                        </div>
+                    </div>
+
+                    <!-- 10. Re-enter Password -->
+                    <div class="form-group">
+                        <label>Confirm Password <span class="required">*</span></label>
+                        <div style="position:relative;">
+                            <input type="password" id="regConfirmPassword" name="confirm_password" placeholder="Re-enter password" minlength="6" required style="padding-right:42px;">
+                            <button type="button" onclick="togglePasswordVisibility('regConfirmPassword', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#64748b;" aria-label="Toggle password">👁️</button>
+                        </div>
                     </div>
 
                 </div>
 
-            </div>
+                <!-- 11. Confirm Registration Button -->
+                <button type="submit" class="btn-submit" id="regSubmitBtn">Confirm Registration 🚀</button>
 
-
-            <div class="feature">
-
-                <div class="feature-icon">
-                    📡
+                <div class="form-footer">
+                    Already registered? <a onclick="switchAuthView('login')">Sign in here</a>
                 </div>
-
-                <div class="feature-text">
-
-                    <div class="feature-title">
-                        Live Bus Tracking
-                    </div>
-
-                    <div class="feature-description">
-                        Track buses in real-time
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="feature">
-
-                <div class="feature-icon">
-                    🔄
-                </div>
-
-                <div class="feature-text">
-
-                    <div class="feature-title">
-                        Return & Exam Buses
-                    </div>
-
-                    <div class="feature-description">
-                        Check return and exam timings
-                    </div>
-
-                </div>
-
-            </div>
-
-
+            </form>
         </div>
 
     </div>
-
-
-
-    <!-- =====================================================
-         RIGHT SIDE
-         ===================================================== -->
-
-    <div class="right">
-
-
-        <h2>
-            Welcome Back 👋
-        </h2>
-
-        <p class="sub">
-            Login to your BusMate portal
-        </p>
-
-
-        <!-- ERROR / SUCCESS MESSAGE -->
-
-        <div id="message" class="message"></div>
-
-
-        <!-- LOGIN FORM -->
-
-        <form id="loginForm">
-
-
-            <label id="firstLabel">
-                Username / ID / Phone
-            </label>
-
-            <input
-                type="text"
-                id="username"
-                name="username"
-                placeholder="Enter username, ID or phone"
-                required
-            >
-
-
-            <label id="secondLabel">
-                Password
-            </label>
-
-            <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Enter password"
-                required
-            >
-
-
-            <label>
-                Login As
-            </label>
-
-            <select
-                id="role"
-                name="role"
-                required
-            >
-
-                <option value="">
-                    Select Portal
-                </option>
-
-                <option value="driver">
-                    🚌 Driver Portal
-                </option>
-
-                <option value="admin">
-                    🛠️ Admin Portal
-                </option>
-
-            </select>
-
-
-            <button
-                type="submit"
-                id="loginButton"
-            >
-                🔐 Login
-            </button>
-
-
-        </form>
-
-
-
-        <!-- SECURITY -->
-
-        <div class="security">
-
-            <div class="security-icon">
-                🛡️
-            </div>
-
-            <div class="security-text">
-
-                <div class="security-title">
-                    Secure & Reliable
-                </div>
-
-                <div class="security-description">
-                    Your data is safe with us.
-                    We ensure secure and reliable
-                    transport management.
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- REGISTER -->
-
-        <div class="register">
-
-            <p>
-                Don't have an account?
-            </p>
-
-            <a href="/student/register">
-                🎓 Student
-            </a>
-
-            <a href="/faculty/register">
-                👨‍🏫 Faculty
-            </a>
-
-            <a href="/driver/register">
-                🚌 Driver
-            </a>
-
-        </div>
-
-
-
-        <div class="footer">
-
-            © 2026 BusMate ·
-            RIT Transport Management System
-
-        </div>
-
-
-    </div>
-
 
 </div>
 
+<!-- ==============================================
+     FORGOT PASSWORD MODAL (PHASE 1 - #5)
+=============================================== -->
+<div id="forgotModal" class="modal-overlay">
+    <div class="modal-card">
+        <button class="modal-close" onclick="closeForgotPasswordModal()">&times;</button>
+        <div class="view-title">Reset Password 🔑</div>
+        <div class="view-sub" id="forgotModalSub">Enter your registered email address to receive a verification OTP.</div>
 
+        <div id="forgotAlert" class="alert-box"></div>
+
+        <!-- STEP 1: REQUEST OTP (EMAIL ONLY) -->
+        <div id="forgotStep1">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Registered Email Address <span class="required">*</span></label>
+                <input type="email" id="forgotContact" placeholder="Enter your registered college or personal email" required autocomplete="email">
+            </div>
+            <button type="button" class="btn-submit" id="btnSendOtp" onclick="handleSendOtp()">Send Verification OTP</button>
+        </div>
+
+        <!-- STEP 2: VERIFY OTP -->
+        <div id="forgotStep2" style="display:none;">
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Enter 6-Digit OTP <span class="required">*</span></label>
+                <input type="text" id="forgotOtp" placeholder="6-digit code" maxlength="6" style="letter-spacing:4px; font-size:18px; text-align:center;" required>
+                <div class="helper-text" id="otpCooldownNotice"></div>
+            </div>
+            <button type="button" class="btn-submit" id="btnVerifyOtp" onclick="handleVerifyOtp()">Verify OTP</button>
+            <div style="text-align:center; margin-top:12px;">
+                <a href="javascript:void(0)" id="btnResendOtp" onclick="handleSendOtp()" style="font-size:12px; color:var(--primary); font-weight:700;">Resend OTP</a>
+            </div>
+        </div>
+
+        <!-- STEP 3: NEW PASSWORD -->
+        <div id="forgotStep3" style="display:none;">
+            <div class="form-group" style="margin-bottom:14px;">
+                <label>New Password <span class="required">*</span></label>
+                <div style="position:relative;">
+                    <input type="password" id="forgotNewPass" placeholder="Enter new password" minlength="6" required style="padding-right:42px;">
+                    <button type="button" onclick="togglePasswordVisibility('forgotNewPass', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#64748b;">👁️</button>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Confirm New Password <span class="required">*</span></label>
+                <div style="position:relative;">
+                    <input type="password" id="forgotConfirmPass" placeholder="Re-enter new password" minlength="6" required style="padding-right:42px;">
+                    <button type="button" onclick="togglePasswordVisibility('forgotConfirmPass', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#64748b;">👁️</button>
+                </div>
+            </div>
+            <button type="button" class="btn-submit" id="btnResetPass" onclick="handleResetPassword()">Update Password</button>
+        </div>
+    </div>
+</div>
 
 <script>
+// ==============================================
+// STATE & CONFIGURATION
+// ==============================================
+let appConfig = {
+    departments: [],
+    student_batches: [],
+    faculty_designations: []
+};
 
-/* =========================================================
-   BUSMATE LOGIN
-   ========================================================= */
+let busesList = [];
+let otpCooldownTimer = null;
+let currentVerifiedContact = "";
+let currentVerifiedOtp = "";
 
-const loginForm = document.getElementById("loginForm");
-const usernameInput = document.getElementById("username");
-const passwordInput = document.getElementById("password");
-const roleInput = document.getElementById("role");
-const loginButton = document.getElementById("loginButton");
-const messageBox = document.getElementById("message");
-const firstLabel = document.getElementById("firstLabel");
-const secondLabel = document.getElementById("secondLabel");
-
-function showMessage(message){
-    messageBox.textContent = message;
-    messageBox.style.display = "block";
+function showAlert(message, type = "error") {
+    const alertBox = document.getElementById("authAlert");
+    alertBox.className = `alert-box alert-${type}`;
+    alertBox.textContent = message;
+    alertBox.style.display = "block";
+    alertBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function hideMessage(){
-    messageBox.textContent = "";
-    messageBox.style.display = "none";
+function hideAlert() {
+    const alertBox = document.getElementById("authAlert");
+    alertBox.style.display = "none";
+    alertBox.textContent = "";
 }
 
-function updateLoginFields(){
-    if(roleInput.value === "driver"){
-        firstLabel.textContent = "Driver Name";
-        secondLabel.textContent = "Phone Number";
-        usernameInput.type = "text";
-        usernameInput.placeholder = "Enter driver name";
-        passwordInput.type = "tel";
-        passwordInput.placeholder = "Enter phone number";
+function showModalAlert(message, type = "error") {
+    const box = document.getElementById("forgotAlert");
+    box.className = `alert-box alert-${type}`;
+    box.textContent = message;
+    box.style.display = "block";
+}
+
+function hideModalAlert() {
+    const box = document.getElementById("forgotAlert");
+    box.style.display = "none";
+    box.textContent = "";
+}
+
+// Switch between Login and Register tabs
+function switchAuthView(view) {
+    hideAlert();
+    const loginView = document.getElementById("loginView");
+    const registerView = document.getElementById("registerView");
+    const tabLogin = document.getElementById("tabLogin");
+    const tabRegister = document.getElementById("tabRegister");
+
+    if (view === "register") {
+        loginView.style.display = "none";
+        registerView.style.display = "block";
+        tabLogin.classList.remove("active");
+        tabRegister.classList.add("active");
     } else {
-        firstLabel.textContent = "Username";
-        secondLabel.textContent = "Password";
-        usernameInput.type = "text";
-        usernameInput.placeholder = "Enter admin username";
-        passwordInput.type = "password";
-        passwordInput.placeholder = "Enter admin password";
+        registerView.style.display = "none";
+        loginView.style.display = "block";
+        tabRegister.classList.remove("active");
+        tabLogin.classList.add("active");
     }
 }
 
-roleInput.addEventListener("change", updateLoginFields);
-updateLoginFields();
+function togglePasswordVisibility(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    if (inp.type === "password") {
+        inp.type = "text";
+        btn.textContent = "🔒";
+        btn.title = "Hide password";
+    } else {
+        inp.type = "password";
+        btn.textContent = "👁️";
+        btn.title = "Show password";
+    }
+}
 
-loginForm.addEventListener("submit", async function(event){
-    event.preventDefault();
-    hideMessage();
+// Select role on login screen (Student, Faculty, Admin, Driver)
+function selectLoginRole(role) {
+    hideAlert();
+    document.getElementById("loginRole").value = role;
+    document.querySelectorAll(".role-pill").forEach(p => p.classList.remove("selected"));
 
-    const firstValue = usernameInput.value.trim();
-    const secondValue = passwordInput.value.trim();
-    const role = roleInput.value;
+    const idLabel = document.getElementById("loginIdLabel");
+    const idInput = document.getElementById("loginId");
+    const passLabel = document.getElementById("loginPassLabel");
+    const passInput = document.getElementById("loginPassword");
 
-    if(!firstValue || !secondValue || !role){
-        showMessage("Please enter all login details.");
+    if (role === "student") {
+        const p = document.getElementById("rolePillStudent"); if (p) p.classList.add("selected");
+        idLabel.innerHTML = 'Register Number or Email <span class="required">*</span>';
+        idInput.placeholder = "Enter register number or college email";
+        passLabel.innerHTML = 'Password <span class="required">*</span>';
+        passInput.placeholder = "Enter password";
+    } else if (role === "faculty") {
+        const p = document.getElementById("rolePillFaculty"); if (p) p.classList.add("selected");
+        idLabel.innerHTML = 'Employee ID or Email <span class="required">*</span>';
+        idInput.placeholder = "Enter employee ID or college email";
+        passLabel.innerHTML = 'Password <span class="required">*</span>';
+        passInput.placeholder = "Enter password";
+    } else if (role === "driver") {
+        const p = document.getElementById("rolePillDriver"); if (p) p.classList.add("selected");
+        idLabel.innerHTML = 'Driver Name or Mobile <span class="required">*</span>';
+        idInput.placeholder = "Enter driver name or 10-digit mobile number";
+        passLabel.innerHTML = 'Password <span class="required">*</span>';
+        passInput.placeholder = "Enter driver password";
+    } else if (role === "admin") {
+        const p = document.getElementById("rolePillAdmin"); if (p) p.classList.add("selected");
+        idLabel.innerHTML = 'Admin / Incharge Username <span class="required">*</span>';
+        idInput.placeholder = "Enter administrator username";
+        passLabel.innerHTML = 'Admin Password <span class="required">*</span>';
+        passInput.placeholder = "Enter administrator password";
+    }
+}
+
+// Dynamic role adaptation on registration form
+function handleRoleChange() {
+    const role = document.getElementById("regRole").value;
+    const idLabel = document.getElementById("regIdLabel");
+    const idInput = document.getElementById("regRegisterNumber");
+    const academicLabel = document.getElementById("regAcademicLabel");
+    const academicInput = document.getElementById("regAcademicYear");
+    const facultyDesig = document.getElementById("regFacultyDesignation");
+    const secGroup = document.getElementById("regClassSectionGroup");
+    const secInput = document.getElementById("regClassSection");
+
+    if (role === "faculty") {
+        idLabel.innerHTML = 'Employee ID <span class="required">*</span>';
+        idInput.placeholder = "Enter employee ID";
+        academicLabel.innerHTML = 'Designation / Staff Role <span class="required">*</span>';
+        if (academicInput) { academicInput.style.display = "none"; academicInput.required = false; }
+        if (facultyDesig) {
+            facultyDesig.style.display = "block";
+            facultyDesig.required = true;
+            facultyDesig.innerHTML = '<option value="">Select Designation</option>';
+            if (appConfig && appConfig.faculty_designations) {
+                appConfig.faculty_designations.forEach(desig => {
+                    const opt = document.createElement("option");
+                    opt.value = desig;
+                    opt.textContent = desig;
+                    facultyDesig.appendChild(opt);
+                });
+            }
+        }
+        if (secGroup) secGroup.style.display = "none";
+        if (secInput) secInput.required = false;
+    } else {
+        idLabel.innerHTML = 'Register Number <span class="required">*</span>';
+        idInput.placeholder = "Enter register number";
+        academicLabel.innerHTML = 'Academic Batch <span class="required">*</span>';
+        if (academicInput) {
+            academicInput.style.display = "block";
+            academicInput.required = true;
+            academicInput.placeholder = "Enter academic batch (e.g., 2026-2029)";
+        }
+        if (facultyDesig) { facultyDesig.style.display = "none"; facultyDesig.required = false; }
+        if (secGroup) secGroup.style.display = "block";
+        if (secInput) secInput.required = true;
+    }
+}
+
+// Load form configuration and bus options
+async function loadConfigAndBuses() {
+    try {
+        const [configRes, busesRes] = await Promise.all([
+            fetch("/api/config/form-options", { cache: "no-store" }),
+            fetch("/api/buses", { cache: "no-store" })
+        ]);
+
+        const configData = await configRes.json();
+        const busesData = await busesRes.json();
+
+        if (configData.success) {
+            appConfig = configData;
+            // Populate department dropdown
+            const deptSelect = document.getElementById("regDepartment");
+            deptSelect.innerHTML = '<option value="">Select Department</option>';
+            appConfig.departments.forEach(dept => {
+                const opt = document.createElement("option");
+                opt.value = dept;
+                opt.textContent = dept;
+                deptSelect.appendChild(opt);
+            });
+            handleRoleChange();
+        }
+
+        if (busesData.success) {
+            busesList = busesData.buses;
+            const busSelect = document.getElementById("regBusId");
+            busSelect.innerHTML = '<option value="">Select Bus Number</option>';
+            busesList.forEach(bus => {
+                const opt = document.createElement("option");
+                opt.value = bus.id;
+                opt.textContent = `${bus.bus_number} - ${bus.route_name}`;
+                busSelect.appendChild(opt);
+            });
+        }
+    } catch (err) {
+        console.error("Initialization error:", err);
+    }
+}
+
+// Fetch boarding points for newly selected bus
+async function handleBusSelectionChange() {
+    const busId = document.getElementById("regBusId").value;
+    const stopSelect = document.getElementById("regBoardingPointId");
+    stopSelect.innerHTML = '<option value="">Loading stops...</option>';
+
+    if (!busId) {
+        stopSelect.innerHTML = '<option value="">Select bus first</option>';
         return;
     }
 
-    let loginUrl = "";
-    const formData = new URLSearchParams();
+    try {
+        const res = await fetch(`/api/bus/${busId}/stops`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.stops) && data.stops.length > 0) {
+            stopSelect.innerHTML = '<option value="">Select Boarding Point</option>';
+            data.stops.forEach(stop => {
+                const opt = document.createElement("option");
+                opt.value = stop.id;
+                const timeInfo = stop.stop_time ? ` (${stop.stop_time})` : "";
+                opt.textContent = `${stop.stop_name}${timeInfo}`;
+                stopSelect.appendChild(opt);
+            });
+        } else {
+            stopSelect.innerHTML = '<option value="">No boarding points found for this bus</option>';
+        }
+    } catch (err) {
+        console.error("Failed to load stops:", err);
+        stopSelect.innerHTML = '<option value="">Unable to load boarding points</option>';
+    }
+}
 
-    if(role === "driver"){
-        loginUrl = "/driver/login";
-        formData.append("driver_name", firstValue);
-        formData.append("phone", secondValue);
-    } else if(role === "admin"){
-        loginUrl = "/admin/login";
-        formData.append("username", firstValue);
-        formData.append("password", secondValue);
+// Handle common registration submission
+async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    hideAlert();
+
+    const submitBtn = document.getElementById("regSubmitBtn");
+    const role = document.getElementById("regRole").value;
+    const name = document.getElementById("regName").value.trim();
+    const register_number = document.getElementById("regRegisterNumber").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const mobile = document.getElementById("regMobile").value.trim();
+
+    if (!/^[a-zA-Z0-9_.+-]+@ritchennai\.edu\.in$/i.test(email)) {
+        showAlert("Registration is restricted to official college email addresses ending in @ritchennai.edu.in.");
+        return;
+    }
+    const department = document.getElementById("regDepartment").value;
+    let academic_year = "";
+    if (role === "faculty") {
+        academic_year = document.getElementById("regFacultyDesignation") ? document.getElementById("regFacultyDesignation").value.trim() : "";
+    } else {
+        academic_year = document.getElementById("regAcademicYear") ? document.getElementById("regAcademicYear").value.trim() : "";
+        const batchMatch = academic_year.match(/^(\d{4})\s*[\u2013\u2014\-]\s*(\d{4})$/);
+        if (!batchMatch) {
+            showAlert("Please enter a valid Academic Batch in YYYY-YYYY format (e.g., 2026-2029).");
+            return;
+        }
+        const startYear = parseInt(batchMatch[1], 10);
+        const endYear = parseInt(batchMatch[2], 10);
+        if (endYear <= startYear) {
+            showAlert("Ending year must be greater than starting year in Academic Batch (e.g., 2026-2029).");
+            return;
+        }
+    }
+    const class_section = document.getElementById("regClassSection") ? document.getElementById("regClassSection").value.trim() : "";
+    const bus_id = document.getElementById("regBusId").value;
+    const boarding_point_id = document.getElementById("regBoardingPointId").value;
+    const password = document.getElementById("regPassword").value;
+    const confirm_password = document.getElementById("regConfirmPassword").value;
+
+    if (password !== confirm_password) {
+        showAlert("Passwords do not match. Please verify.");
+        return;
     }
 
-    loginButton.disabled = true;
-    loginButton.textContent = "⏳ Logging in...";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Processing Registration...";
 
-    try{
-        const response = await fetch(loginUrl, {
-            method:"POST",
-            headers:{"Content-Type":"application/x-www-form-urlencoded"},
-            body:formData.toString(),
-            credentials:"same-origin"
+    try {
+        const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                role, name, register_number, email, mobile,
+                department, academic_year, class_section, bus_id, boarding_point_id,
+                password, confirm_password
+            })
         });
 
         const data = await response.json();
-        if(response.ok && data.success){
-            loginButton.textContent = "✅ Login Successful";
-            window.location.href = data.redirect;
-            return;
+        if (response.ok && data.success) {
+            showAlert(data.message, "success");
+            document.getElementById("registerForm").reset();
+            handleRoleChange();
+            setTimeout(() => {
+                switchAuthView("login");
+                document.getElementById("loginId").value = register_number;
+            }, 1500);
+        } else {
+            showAlert(data.message || "Registration failed.");
         }
-        showMessage(data.message || "Invalid login details.");
-    }catch(error){
-        console.error("Login error:", error);
-        showMessage("Unable to connect to the server. Make sure Flask app.py is running.");
+    } catch (err) {
+        showAlert("Network error. Please ensure Flask app is running.");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Confirm Registration 🚀";
+    }
+}
+
+// Handle login submission
+async function handleLoginSubmit(e) {
+    e.preventDefault();
+    hideAlert();
+
+    const role = document.getElementById("loginRole").value;
+    const loginId = document.getElementById("loginId").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const btn = document.getElementById("loginBtn");
+
+    if (!loginId || !password) {
+        showAlert("Please fill in both fields.");
+        return;
     }
 
-    loginButton.disabled = false;
-    loginButton.textContent = "🔐 Login";
+    btn.disabled = true;
+    btn.textContent = "Signing In...";
+
+    let endpoint = "/api/auth/login";
+    let body = { login_id: loginId, password: password, role: role };
+
+    if (role === "admin") {
+        endpoint = "/admin/login";
+        body = { username: loginId, password: password };
+    } else if (role === "driver") {
+        endpoint = "/driver/login";
+        body = { driver_name: loginId, password: password, phone: loginId };
+    } else if (role === "student" || role === "faculty") {
+        body = { login_id: loginId, password: password, role: role };
+    }
+
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            showAlert("Login successful! Redirecting...", "success");
+            window.location.href = data.redirect;
+        } else {
+            showAlert(data.message || "Invalid credentials.");
+            btn.disabled = false;
+            btn.textContent = "🔐 Sign In to Portal";
+        }
+    } catch (err) {
+        showAlert("Connection error. Ensure the server is online.");
+        btn.disabled = false;
+        btn.textContent = "🔐 Sign In to Portal";
+    }
+}
+
+// ==============================================
+// FORGOT PASSWORD WORKFLOW
+// ==============================================
+function openForgotPasswordModal() {
+    hideModalAlert();
+    document.getElementById("forgotStep1").style.display = "block";
+    document.getElementById("forgotStep2").style.display = "none";
+    document.getElementById("forgotStep3").style.display = "none";
+    document.getElementById("forgotContact").value = "";
+    document.getElementById("forgotModal").style.display = "flex";
+}
+
+function closeForgotPasswordModal() {
+    document.getElementById("forgotModal").style.display = "none";
+}
+
+async function handleSendOtp() {
+    hideModalAlert();
+    const email = document.getElementById("forgotContact").value.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+        showModalAlert("Please enter a valid registered email address.");
+        return;
+    }
+
+    const btn = document.getElementById("btnSendOtp");
+    btn.disabled = true;
+    btn.textContent = "Sending OTP...";
+
+    try {
+        const response = await fetch("/api/auth/forgot-password/send-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, contact: email })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            currentVerifiedContact = email;
+            document.getElementById("forgotStep1").style.display = "none";
+            document.getElementById("forgotStep2").style.display = "block";
+
+            let msg = data.message;
+            showModalAlert(msg, data.provider_configured ? "success" : "info");
+        } else {
+            showModalAlert(data.message || "Unable to send OTP.");
+        }
+    } catch (err) {
+        showModalAlert("Network error while requesting OTP.");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Send Verification OTP";
+    }
+}
+
+async function handleVerifyOtp() {
+    hideModalAlert();
+    const otp = document.getElementById("forgotOtp").value.trim();
+    if (!otp || otp.length !== 6) {
+        showModalAlert("Please enter a valid 6-digit OTP.");
+        return;
+    }
+
+    const btn = document.getElementById("btnVerifyOtp");
+    btn.disabled = true;
+    btn.textContent = "Verifying...";
+
+    try {
+        const response = await fetch("/api/auth/forgot-password/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: currentVerifiedContact, contact: currentVerifiedContact, otp })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            currentVerifiedOtp = otp;
+            document.getElementById("forgotStep2").style.display = "none";
+            document.getElementById("forgotStep3").style.display = "block";
+            showModalAlert("OTP verified! Create your new password.", "success");
+        } else {
+            showModalAlert(data.message || "Invalid OTP code.");
+        }
+    } catch (err) {
+        showModalAlert("Network error during OTP verification.");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Verify OTP";
+    }
+}
+
+async function handleResetPassword() {
+    hideModalAlert();
+    const new_password = document.getElementById("forgotNewPass").value;
+    const confirm_password = document.getElementById("forgotConfirmPass").value;
+
+    if (!new_password || !confirm_password) {
+        showModalAlert("Please complete both password fields.");
+        return;
+    }
+
+    if (new_password !== confirm_password) {
+        showModalAlert("Passwords do not match.");
+        return;
+    }
+
+    if (new_password.length < 6) {
+        showModalAlert("Password must be at least 6 characters.");
+        return;
+    }
+
+    const btn = document.getElementById("btnResetPass");
+    btn.disabled = true;
+    btn.textContent = "Updating Password...";
+
+    try {
+        const response = await fetch("/api/auth/forgot-password/reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: currentVerifiedContact,
+                contact: currentVerifiedContact,
+                otp: currentVerifiedOtp,
+                new_password,
+                confirm_password
+            })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+            showModalAlert(data.message, "success");
+            setTimeout(() => {
+                closeForgotPasswordModal();
+                switchAuthView("login");
+                showAlert("Password reset successful. Please sign in with your new password.", "success");
+            }, 1400);
+        } else {
+            showModalAlert(data.message || "Password update failed.");
+        }
+    } catch (err) {
+        showModalAlert("Network error while updating password.");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Update Password";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadConfigAndBuses();
 });
 </script>
-
 
 </body>
 </html>

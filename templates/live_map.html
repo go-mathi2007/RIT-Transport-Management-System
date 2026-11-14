@@ -1,315 +1,422 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BusMate - Live Bus Tracking</title>
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
     <!-- LEAFLET CSS -->
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
     <style>
-
         #map {
-
             width: 100%;
             height: min(72vh, 680px);
-            min-height: 460px;
-
-            border-radius: 15px;
-
-            margin-top: 20px;
+            min-height: 480px;
+            border-radius: 16px;
+            margin-top: 18px;
+            box-shadow: 0 4px 20px rgba(8, 45, 92, 0.1);
+            border: 1px solid #cbd5e1;
+            cursor: grab;
         }
 
-        .map-info {
-
-            padding: 20px;
-            margin-bottom: 15px;
-
-            border-radius: 12px;
-
-            background: white;
+        .bus-tracking-marker {
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.38));
+            transition: transform 0.1s linear;
         }
 
-        .status { font-weight: bold; }
-        .bus-tracking-marker { filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
-        #map { cursor: grab; }
-        .map-hint { margin-top:10px; color:#475569; font-size:13px; }
+        .map-card-info {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 15px rgba(8, 45, 92, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
 
+        .live-pulse-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+        }
 
+        .live-on {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .live-off {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            display: inline-block;
+        }
+
+        .pulse {
+            animation: pulseAnim 1.6s infinite;
+        }
+
+        @keyframes pulseAnim {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .map-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .stat-box {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-val {
+            font-size: 15px;
+            font-weight: 800;
+            color: #082d5c;
+        }
     </style>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='modern.css') }}">
 </head>
-
-
 <body>
 
 <header class="topbar">
+    <div class="topbar-content">
+        <div class="brand portal-brand">
+            <div class="portal-logo-wrap">
+                <img src="{{ url_for('static', filename='rit-logo.png') }}" alt="RIT" class="portal-logo">
+            </div>
+            <div class="portal-brand-text">
+                <h1>BUSMATE</h1>
+                <p>Live Satellite Tracking</p>
+            </div>
+        </div>
 
-    <div>
-
-        <h1>🚌 BusMate</h1>
-
-        <p>Live Bus Tracking</p>
-
+        <div class="portal-actions">
+            <a href="/" class="logout-btn">← Back to Dashboard</a>
+        </div>
     </div>
-
-    <a
-        href="/"
-        class="logout-btn">
-
-        Logout
-
-    </a>
-
 </header>
 
+<main class="container" style="padding-top:20px; padding-bottom:50px;">
 
-<main class="container">
+    <div class="map-card-info">
+        <div>
+            <h2 style="font-size:22px; color:#082d5c; margin-bottom:4px;" id="busTrackingTitle">Tracking Bus Location</h2>
+            <p style="font-size:13px; color:#64748b; margin:0;" id="busDriverInfo">Connecting to live bus satellite feed...</p>
+        </div>
+        <div id="liveStatusContainer">
+            <span class="live-pulse-badge live-off" id="liveBadge">
+                <span class="live-dot"></span> <span id="liveBadgeText">CONNECTING</span>
+            </span>
+        </div>
+    </div>
 
+    <!-- LEAFLET MAP -->
+    <div id="map"></div>
+    <p style="font-size:12px; color:#64748b; margin-top:8px;">
+        💡 <em>The custom bus tracking pin smoothly moves along the road between actual received GPS coordinates. Tap the pin for live driver and route details.</em>
+    </p>
 
-    <!-- BUS INFORMATION -->
-
-    <section class="welcome-card">
-
-        <h2>
-            📍 Live Bus Location
-        </h2>
-
-        <p id="busInfo">
-            Loading bus information...
-        </p>
-        <div id="driverInfo" class="driver-card">Driver: --- &nbsp; 📞 ---</div>
-
-        <p
-            class="status"
-            id="locationStatus">
-
-            Connecting...
-
-        </p>
-
-        <p>
-
-            Last Updated:
-
-            <strong id="lastUpdated">
-                ---
-            </strong>
-
-        </p>
-
-    </section>
-
-
-    <!-- MAP -->
-
-    <section class="portal-section">
-
-        <div id="map"></div>
-        <p class="map-hint">Tap the large tracking pin to see the bus's latest GPS location. The blue line shows the received movement trail.</p>
-
-    </section>
-
-
-    <!-- GPS DETAILS -->
-
-    <section class="portal-section">
-
-        <h2>📡 GPS Details</h2>
-
-        <p>
-
-            Latitude:
-
-            <strong id="latitude">
-                ---
-            </strong>
-
-        </p>
-
-        <p>
-
-            Longitude:
-
-            <strong id="longitude">
-                ---
-            </strong>
-
-        </p>
-
-        <p>
-
-            Current Location:
-
-            <strong id="currentLocation">
-                ---
-            </strong>
-
-        </p>
-
-        <p>
-
-            Next Point:
-
-            <strong id="nextPoint">
-                ---
-            </strong>
-
-        </p>
-
-    </section>
-
+    <!-- REAL-TIME TELEMETRY STATS -->
+    <div class="map-stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">Assigned Route</div>
+            <div class="stat-val" id="statRoute">---</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Trip Status</div>
+            <div class="stat-val" id="statTripStatus">---</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">GPS Latitude</div>
+            <div class="stat-val" id="statLat" style="font-family:monospace;">---</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">GPS Longitude</div>
+            <div class="stat-val" id="statLng" style="font-family:monospace;">---</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Last GPS Fix</div>
+            <div class="stat-val" id="statUpdated">---</div>
+        </div>
+        <div class="stat-box" style="grid-column: 1 / -1;">
+            <div class="stat-label">Resolved Landmark / Location Name</div>
+            <div class="stat-val" id="statLocationName" style="font-size:14px; font-weight:600;">---</div>
+        </div>
+    </div>
 
 </main>
 
-
 <!-- LEAFLET JS -->
-
-<script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-
-let map;
+let map = null;
 let busMarker = null;
-let locationTrail = null;
-let trailPoints = [];
 let busNumber = null;
-let lastPosition = null;
-let targetPosition = null;
-let animationFrame = null;
-let lastServerUpdate = 0;
+let currentPos = null;
+let animFrameId = null;
 let firstFix = true;
+let isTrackingActive = false;
 
 const params = new URLSearchParams(window.location.search);
-busNumber = params.get("bus");
+busNumber = params.get("bus") ? params.get("bus").trim().toUpperCase() : null;
 
-function initMap() {
-    const initialPosition = [12.8256, 80.0453];
-    map = L.map("map").setView(initialPosition, 14);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
-    if (!busNumber) {
-        document.getElementById("locationStatus").textContent = "❌ Bus number not provided.";
+function initLiveMap() {
+    if (typeof L === "undefined") {
+        const mapContainer = document.getElementById("map");
+        if (mapContainer) {
+            mapContainer.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; min-height:460px; padding:30px; text-align:center; color:#991b1b; background:#fee2e2; border-radius:16px;">
+                    <h3 style="margin-bottom:8px; font-size:20px;">⚠️ Map Engine Unavailable</h3>
+                    <p style="color:#7f1d1d; max-width:520px; font-size:14px; line-height:1.6; margin-bottom:12px;">
+                        The Leaflet map engine could not be loaded from CDN. Please verify internet connectivity or ensure CDN access to unpkg.com.
+                    </p>
+                    <p style="color:#991b1b; font-size:12px; font-weight:700;">
+                        Live telemetry and location data will continue to update in the statistics grid below.
+                    </p>
+                </div>
+            `;
+        }
+        updateBadge(false, "MAP LOAD ERROR");
+        const infoEl = document.getElementById("busDriverInfo");
+        if (infoEl) infoEl.textContent = "Map library CDN unavailable. Showing data in telemetry grid below.";
+
+        if (busNumber) {
+            fetchLiveLocation();
+            setInterval(fetchLiveLocation, 1200);
+        }
         return;
     }
-    document.getElementById("busInfo").textContent = `Tracking Bus ${busNumber}`;
-    updateLiveLocation();
-    setInterval(updateLiveLocation, 1000);
-}
 
-function animateMarkerTo(position, duration=900) {
-    if (!busMarker) return;
-    const from = lastPosition || busMarker.getLatLng();
-    const start = performance.now();
-    function frame(now) {
-        const t = Math.min(1, (now - start) / duration);
-        const eased = t * (2 - t);
-        const lat = from[0] + (position[0] - from[0]) * eased;
-        const lng = from[1] + (position[1] - from[1]) * eased;
-        busMarker.setLatLng([lat, lng]);
-        if (t < 1) animationFrame = requestAnimationFrame(frame);
-        else { lastPosition = position; animationFrame = null; }
+    // Default center on RIT Campus
+    const ritCampusCoords = [13.0425, 80.0163];
+    map = L.map("map", { zoomControl: true }).setView(ritCampusCoords, 14);
+
+    const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors &middot; RIT Transport"
+    }).addTo(map);
+
+    tileLayer.on("tileerror", function (e) {
+        console.warn("Map tile load warning (offline network):", e);
+    });
+
+    if (!busNumber) {
+        document.getElementById("busTrackingTitle").textContent = "No Bus Specified";
+        document.getElementById("busDriverInfo").textContent = "Please select a bus from your portal to track.";
+        updateBadge(false, "NO BUS SELECTED");
+        return;
     }
-    if (animationFrame) cancelAnimationFrame(animationFrame);
-    animationFrame = requestAnimationFrame(frame);
+
+    document.getElementById("busTrackingTitle").textContent = `Tracking Bus ${busNumber}`;
+    fetchLiveLocation();
+    setInterval(fetchLiveLocation, 1200);
 }
 
+// Smooth coordinate interpolation along the road (requestAnimationFrame with quad easing)
+function animateMarker(fromCoord, toCoord, duration) {
+    if (!busMarker) return;
+    if (animFrameId) cancelAnimationFrame(animFrameId);
 
-async function updateLiveLocation() {
+    const start = performance.now();
+
+    function step(timestamp) {
+        const elapsed = timestamp - start;
+        const progress = Math.min(1, elapsed / duration);
+        // Quadratic easing out: smooth road progression
+        const ease = progress * (2 - progress);
+
+        const lat = fromCoord[0] + (toCoord[0] - fromCoord[0]) * ease;
+        const lng = fromCoord[1] + (toCoord[1] - fromCoord[1]) * ease;
+
+        busMarker.setLatLng([lat, lng]);
+
+        if (progress < 1) {
+            animFrameId = requestAnimationFrame(step);
+        } else {
+            currentPos = toCoord;
+            animFrameId = null;
+        }
+    }
+
+    animFrameId = requestAnimationFrame(step);
+}
+
+function updateBadge(isLive, text) {
+    const badge = document.getElementById("liveBadge");
+    const label = document.getElementById("liveBadgeText");
+    if (isLive) {
+        badge.className = "live-pulse-badge live-on pulse";
+    } else {
+        badge.className = "live-pulse-badge live-off";
+    }
+    label.textContent = text;
+}
+
+async function fetchLiveLocation() {
     if (!busNumber) return;
+
     try {
-        const response = await fetch(`/api/bus-location/${encodeURIComponent(busNumber)}`, {cache:"no-store"});
-        const data = await response.json();
+        const res = await fetch(`/api/bus-location/${encodeURIComponent(busNumber)}`, { cache: "no-store" });
+        const data = await res.json();
+
         if (!data.success) {
-            document.getElementById("locationStatus").textContent = "❌ Bus not found.";
+            updateBadge(false, "BUS NOT FOUND");
+            document.getElementById("busDriverInfo").textContent = data.message || "Bus not found in system.";
             return;
         }
-        if (data.location_shared && data.driver_name) {
-            document.getElementById("driverInfo").innerHTML = `<strong>👨‍✈️ Driver:</strong> ${escapeHtml(data.driver_name)} &nbsp; <strong>📞</strong> ${escapeHtml(data.driver_phone || "---")}`;
-        } else {
-            document.getElementById("driverInfo").innerHTML = `<strong>👨‍✈️ Driver:</strong> Not currently sharing location`;
-        }
+
+        document.getElementById("statRoute").textContent = data.route_name || "---";
+
         if (!data.location_shared) {
-            document.getElementById("locationStatus").textContent = "🔴 Driver has not shared location yet.";
+            isTrackingActive = false;
+            updateBadge(false, "OFFLINE / NOT SHARING");
+            document.getElementById("busDriverInfo").textContent = "Driver has not started location sharing or trip is completed.";
+            document.getElementById("statTripStatus").textContent = data.bus_status ? data.bus_status.replace("_", " ") : "OFFLINE";
+            document.getElementById("statLat").textContent = "---";
+            document.getElementById("statLng").textContent = "---";
+            document.getElementById("statUpdated").textContent = data.updated_at ? `Last active: ${data.updated_at}` : "Waiting for driver GPS...";
+            document.getElementById("statLocationName").textContent = "Location unavailable (Driver offline)";
+            if (busMarker) {
+                const offlinePopup = `
+                    <div style="min-width:190px; font-family:sans-serif; line-height:1.55; color:#1e293b;">
+                        <div style="border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
+                            <strong style="font-size:15px; color:#082d5c;">🚌 Bus ${escapeHtml(busNumber)}</strong>
+                            <div style="color:#b91c1c; font-weight:800; font-size:11px; margin-top:2px;">○ OFFLINE / NOT SHARING</div>
+                        </div>
+                        <div style="font-size:12px; color:#64748b;">${escapeHtml(data.route_name || '')}</div>
+                        <div style="font-size:12px; margin-top:4px; color:#475569;">Driver is currently offline or trip has completed.</div>
+                    </div>
+                `;
+                busMarker.setPopupContent(offlinePopup);
+            }
             return;
         }
-        const latitude = Number(data.latitude), longitude = Number(data.longitude);
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            document.getElementById("locationStatus").textContent = "⚠️ Invalid GPS coordinates.";
+
+        // Live location active
+        isTrackingActive = true;
+        updateBadge(true, "LIVE GPS ACTIVE");
+
+        const lat = parseFloat(data.latitude);
+        const lng = parseFloat(data.longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            document.getElementById("busDriverInfo").textContent = "Received invalid GPS coordinates.";
             return;
         }
-        const position = [latitude, longitude];
-        document.getElementById("locationStatus").textContent = "🟢 Live location active";
-        document.getElementById("lastUpdated").textContent = data.updated_at || "---";
-        document.getElementById("latitude").textContent = latitude.toFixed(6);
-        document.getElementById("longitude").textContent = longitude.toFixed(6);
-        document.getElementById("currentLocation").textContent = data.current_location || "GPS location";
-        document.getElementById("nextPoint").textContent = data.next_point || "---";
-        // Keep a visible trail of received GPS fixes so movement is easy to follow.
-        const previous = trailPoints.length ? trailPoints[trailPoints.length - 1] : null;
-        if (!previous || map.distance(L.latLng(previous), L.latLng(position)) > 4) {
-            trailPoints.push(position);
-            if (trailPoints.length > 500) trailPoints.shift();
-        }
-        if (!locationTrail) {
-            locationTrail = L.polyline(trailPoints, {color:'#075fe4', weight:6, opacity:0.88, lineCap:'round', lineJoin:'round'}).addTo(map);
-        } else {
-            locationTrail.setLatLngs(trailPoints);
-        }
-        const popupHtml = `<div style="min-width:190px;line-height:1.7"><strong>📍 Bus ${escapeHtml(data.bus_number)}</strong><br>👨‍✈️ ${escapeHtml(data.driver_name || "Not assigned")}<br>📌 ${escapeHtml(data.current_location || 'Current GPS location')}<br>Lat: ${latitude.toFixed(6)}<br>Lng: ${longitude.toFixed(6)}<br><span style="color:#07864b;font-weight:800">● LIVE</span></div>`;
+
+        const newCoord = [lat, lng];
+
+        document.getElementById("statLat").textContent = lat.toFixed(6);
+        document.getElementById("statLng").textContent = lng.toFixed(6);
+        document.getElementById("statUpdated").textContent = data.updated_at || "Just now";
+        document.getElementById("statTripStatus").textContent = data.bus_status ? data.bus_status.replace("_", " ") : "ON ROUTE";
+
+        const driverText = data.driver_name ? `Driver: ${escapeHtml(data.driver_name)} ${data.driver_phone ? `(${escapeHtml(data.driver_phone)})` : ''}` : "Driver sharing active";
+        document.getElementById("busDriverInfo").textContent = driverText;
+
+        const locationName = data.location_name || data.current_location || (data.location_shared ? 'Location name unavailable' : 'Offline');
+        document.getElementById("statLocationName").textContent = locationName;
+
+        const liveStatusHtml = '<span style="color:#15803d; font-weight:800;">● LIVE ACTIVE</span>';
+
+        const popupContent = `
+            <div style="min-width:210px; font-family:sans-serif; line-height:1.55; color:#1e293b;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:8px;">
+                    <strong style="font-size:16px; color:#082d5c;">🚌 Bus ${escapeHtml(data.bus_number)}</strong>
+                    <span style="font-size:11px;">${liveStatusHtml}</span>
+                </div>
+                <div style="font-size:12px; color:#64748b; margin-bottom:6px;">${escapeHtml(data.route_name || 'Campus Route')}</div>
+                <div style="font-size:12px; margin-bottom:3px;"><strong>👨‍✈️ Driver:</strong> ${escapeHtml(data.driver_name || 'Assigned Driver')}</div>
+                ${data.driver_phone ? `<div style="font-size:12px; margin-bottom:3px;"><strong>📞 Phone:</strong> ${escapeHtml(data.driver_phone)}</div>` : ''}
+                <div style="font-size:12px; margin-bottom:3px;"><strong>📍 Location:</strong> ${escapeHtml(locationName)}</div>
+                <div style="font-size:12px; margin-bottom:3px; font-family:monospace;"><strong>🌐 Coordinates:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                <div style="font-size:12px; margin-bottom:3px;"><strong>🕒 Last Fix:</strong> ${escapeHtml(data.updated_at || 'Just now')}</div>
+                <div style="font-size:12px;"><strong>🚦 Status:</strong> ${escapeHtml(data.bus_status ? data.bus_status.replace('_', ' ') : 'ON ROUTE')}</div>
+            </div>
+        `;
+
         if (!busMarker) {
             const busIcon = L.icon({
-                iconUrl: '/static/bus-tracking-pin.png',
-                iconSize: [72, 82],
-                iconAnchor: [36, 78],
-                popupAnchor: [0, -72],
-                className: 'bus-tracking-marker'
+                iconUrl: "/static/bus-tracking-pin.png",
+                iconSize: [64, 74],
+                iconAnchor: [32, 70],
+                popupAnchor: [0, -64],
+                className: "bus-tracking-marker"
             });
-            busMarker = L.marker(position, {icon:busIcon, zIndexOffset:1500, title:`Bus ${data.bus_number} - tap for location`}).addTo(map);
-            busMarker.bindPopup(popupHtml, {autoPan:true, maxWidth:280});
-            busMarker.on('click', function(){ this.setPopupContent(popupHtml); });
-            lastPosition = position;
-            map.setView(position, 17);
+
+            busMarker = L.marker(newCoord, {
+                icon: busIcon,
+                zIndexOffset: 1000,
+                title: `Bus ${data.bus_number}`
+            }).addTo(map);
+
+            busMarker.bindPopup(popupContent, { maxWidth: 280, autoPan: true });
+            currentPos = newCoord;
+            map.setView(newCoord, 16);
             firstFix = false;
         } else {
-            animateMarkerTo(position, 950);
-            busMarker.setPopupContent(popupHtml);
-            const center = map.getCenter();
-            if (center && map.distance(center, position) > 500) map.panTo(position, {animate:true, duration:0.7});
+            busMarker.setPopupContent(popupContent);
+            const dist = map.distance(L.latLng(currentPos || newCoord), L.latLng(newCoord));
+            if (dist > 0.5 && dist < 10000) {
+                animateMarker(currentPos, newCoord, 950);
+            } else if (dist >= 10000) {
+                busMarker.setLatLng(newCoord);
+                currentPos = newCoord;
+            }
+
+            const mapCenter = map.getCenter();
+            if (mapCenter && map.distance(mapCenter, L.latLng(newCoord)) > 500) {
+                map.panTo(newCoord, { animate: true, duration: 0.7 });
+            }
         }
-        lastServerUpdate = Date.now();
-    } catch (error) {
-        console.error("Live location error:", error);
-        document.getElementById("locationStatus").textContent = "⚠️ Unable to connect to server.";
+    } catch (e) {
+        console.error("Tracking update network error:", e);
+        updateBadge(false, "NETWORK ERROR");
+        const infoEl = document.getElementById("busDriverInfo");
+        if (infoEl) infoEl.textContent = "⚠️ Network error connecting to server. Please check Wi-Fi connection.";
     }
 }
 
-function escapeHtml(value) {
-    return String(value == null ? "" : value).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+function escapeHtml(val) {
+    return String(val == null ? "" : val).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 }
 
-document.addEventListener("DOMContentLoaded", initMap);
+document.addEventListener("DOMContentLoaded", initLiveMap);
 </script>
 
 </body>
-
 </html>
