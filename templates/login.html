@@ -581,10 +581,10 @@
                         <input type="text" id="regRegisterNumber" name="register_number" placeholder="Enter register number" required>
                     </div>
 
-                    <!-- 4. Email Address (Feature 8: Institutional @ritchennai.edu.in) -->
+                    <!-- 4. Email Address (Feature 8: Institutional @ritchennai.edu.in & Department Subdomains) -->
                     <div class="form-group">
                         <label>Institutional College Email (@ritchennai.edu.in) <span class="required">*</span></label>
-                        <input type="email" id="regEmail" name="email" placeholder="example@ritchennai.edu.in" pattern="^[a-zA-Z0-9_.+-]+@ritchennai\.edu\.in$" title="Please enter your official college email ending in @ritchennai.edu.in" required>
+                        <input type="email" id="regEmail" name="email" placeholder="example@ritchennai.edu.in" pattern="^[a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*[rR][iI][tT][cC][hH][eE][nN][nN][aA][iI]\.[eE][dD][uU]\.[iI][nN]$" title="Please enter your official college email ending in @ritchennai.edu.in or department subdomain" required>
                     </div>
 
                     <!-- 5. Mobile Number -->
@@ -967,7 +967,9 @@ async function handleRegisterSubmit(e) {
     const email = document.getElementById("regEmail").value.trim();
     const mobile = document.getElementById("regMobile").value.trim();
 
-    if (!/^[a-zA-Z0-9_.+-]+@ritchennai\.edu\.in$/i.test(email)) {
+    // Institutional email validation: accepts @ritchennai.edu.in and department subdomains (e.g., @cse.ritchennai.edu.in)
+    const institutionalEmailPattern = /^[a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*ritchennai\.edu\.in$/i;
+    if (!institutionalEmailPattern.test(email)) {
         showAlert("Registration is restricted to official college email addresses ending in @ritchennai.edu.in.");
         return;
     }

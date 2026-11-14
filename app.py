@@ -3315,6 +3315,29 @@ def push_subscribe():
 # COMMON STUDENT & FACULTY REGISTRATION
 # ============================================================
 
+def is_valid_institutional_email(email: str) -> bool:
+    """
+    Validates institutional email addresses for RIT Students & Faculty.
+    Accepts:
+      - Main institutional domain: user@ritchennai.edu.in
+      - Department subdomains: user@cse.ritchennai.edu.in, user@ece.ritchennai.edu.in,
+        user@it.ritchennai.edu.in, user@anydepartment.ritchennai.edu.in,
+        user@sub.department.ritchennai.edu.in
+    Rejects:
+      - Public email providers (e.g., gmail.com, yahoo.com)
+      - Lookalikes / suffix spoofing (e.g., ritchennai.edu.in.example.com, fake-ritchennai.edu.in)
+      - Non-institutional domains (e.g., ritchennai.com, ritchennai.edu.com)
+      - Malformed subdomains (e.g., -cse.ritchennai.edu.in, cse-.ritchennai.edu.in)
+    """
+    if not email or not isinstance(email, str):
+        return False
+    normalized = email.strip().lower()
+    return bool(re.match(
+        r"^[a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*ritchennai\.edu\.in$",
+        normalized
+    ))
+
+
 @app.route("/api/auth/register", methods=["POST"])
 def auth_register():
     """
@@ -3370,7 +3393,7 @@ def auth_register():
         class_section = None
 
     # Feature 8: Strict institutional email validation for Students & Faculty
-    if not re.match(r"^[a-zA-Z0-9_.+-]+@ritchennai\.edu\.in$", email, re.IGNORECASE):
+    if not is_valid_institutional_email(email):
         return jsonify({
             "success": False,
             "message": "Registration is restricted to official college email addresses ending in @ritchennai.edu.in."
