@@ -1594,6 +1594,14 @@ function renderBusMembersTable(members) {
 // SECTION 2: MANAGE DRIVERS LOGIC (PHASE 4)
 // =========================================================
 async function loadDriversRoster() {
+    // Prefetch buses in background so allBusesList is cached
+    if (!allBusesList || allBusesList.length === 0) {
+        fetch("/api/buses", { cache: "no-store" })
+            .then(r => r.json())
+            .then(d => { if (d && d.success && Array.isArray(d.buses)) allBusesList = d.buses; })
+            .catch(() => {});
+    }
+
     const tbody = document.getElementById("driversTableBody");
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">Loading drivers...</td></tr>';
     try {
@@ -1613,7 +1621,7 @@ async function loadDriversRoster() {
                     <td><span class="badge ${d.is_active ? 'badge-active' : 'badge-inactive'}">${escapeHtml(d.account_status)}</span></td>
                     <td><span class="badge ${d.assigned_bus_id ? 'badge-assigned' : 'badge-unassigned'}">${escapeHtml(d.assignment_status)}</span></td>
                     <td style="text-align:right; white-space:nowrap;">
-                        <button class="btn-action btn-primary-action" onclick="openAssignDriverModal(${d.id}, '${escapeHtml(d.name)}')">
+                        <button class="btn-action btn-primary-action" onclick="openAssignDriverModal(${d.id}, '${escapeHtml(d.name)}', ${d.assigned_bus_id || 'null'})">
                             ${d.assigned_bus_id ? '🔄 Change Bus' : '🚌 Assign Bus'}
                         </button>
                         ${d.assigned_bus_id ? `<button class="btn-action btn-secondary-action" onclick="unassignDriver(${d.id})">Unassign</button>` : ''}
@@ -1693,27 +1701,55 @@ async function submitAddDriver(e) {
     }
 }
 
-function openAssignDriverModal(driverId, driverName) {
+async function openAssignDriverModal(driverId, driverName, currentBusId = null) {
     document.getElementById("assignModalDriverId").value = driverId;
     document.getElementById("assignModalDriverName").textContent = `Driver: ${driverName}`;
 
-    // Populate buses dropdown
     const sel = document.getElementById("assignModalBusSelect");
-    sel.innerHTML = '<option value="">-- Choose Bus to Assign --</option>';
-    allBusesList.forEach(b => {
-        const opt = document.createElement("option");
-        opt.value = b.id; opt.textContent = `${b.bus_number} - ${b.route_name}`;
-        sel.appendChild(opt);
-    });
-
+    sel.innerHTML = '<option value="">Loading active buses...</option>';
     openModal("assignBusModal");
+
+    // Fetch buses if not already loaded in allBusesList
+    if (!allBusesList || allBusesList.length === 0) {
+        try {
+            const res = await fetch("/api/buses", { cache: "no-store" });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.buses)) {
+                allBusesList = data.buses;
+            }
+        } catch (e) {
+            console.error("Failed to load buses for assignment modal:", e);
+        }
+    }
+
+    sel.innerHTML = '<option value="">-- Choose Bus to Assign --</option>';
+    if (allBusesList && allBusesList.length > 0) {
+        allBusesList.forEach(b => {
+            const opt = document.createElement("option");
+            opt.value = b.id;
+            opt.textContent = `${b.bus_number} - ${b.route_name}`;
+            if (currentBusId && String(b.id) === String(currentBusId)) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
+    } else {
+        sel.innerHTML = '<option value="">No buses available</option>';
+    }
 }
 
 async function submitAssignDriverBus(e) {
     e.preventDefault();
+    const btn = document.querySelector("#assignBusForm button[type='submit']");
     const driverId = document.getElementById("assignModalDriverId").value;
     const busId = document.getElementById("assignModalBusSelect").value;
     if (!busId) { alert("Please select a bus."); return; }
+
+    const originalText = btn ? btn.innerHTML : "Confirm Bus Assignment";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "Assigning Bus...";
+    }
 
     try {
         const res = await fetch(`/api/admin/driver/${driverId}/assign`, {
@@ -1730,7 +1766,12 @@ async function submitAssignDriverBus(e) {
             alert(data.message || "Assignment failed.");
         }
     } catch (e) {
-        alert("Network error.");
+        alert("Network error. Please try again.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 

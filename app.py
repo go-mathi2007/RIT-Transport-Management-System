@@ -3608,7 +3608,7 @@ def auth_register():
     if not is_valid_institutional_email(email):
         return jsonify({
             "success": False,
-            "message": "Registration is restricted to official college email addresses ending in @ritchennai.edu.in."
+            "message": "Registration is restricted to official college email addresses ending in @ritchennai.edu.in or department subdomains (e.g., student@ritchennai.edu.in or student@cse.ritchennai.edu.in)."
         }), 400
 
     clean_mobile = re.sub(r"\D", "", mobile)
