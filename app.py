@@ -81,21 +81,13 @@ if _env_uploads_path and _env_uploads_path.strip():
     _custom_uploads = Path(_env_uploads_path.strip()).resolve()
     if _custom_uploads.name.lower() == "notices":
         NOTICES_UPLOAD_FOLDER = str(_custom_uploads)
-        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads.parent / "drivers")
-    elif _custom_uploads.name.lower() == "drivers":
-        NOTICES_UPLOAD_FOLDER = str(_custom_uploads.parent / "notices")
-        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads)
     else:
         NOTICES_UPLOAD_FOLDER = str(_custom_uploads / "notices")
-        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads / "drivers")
 else:
     NOTICES_UPLOAD_FOLDER = str(_default_uploads_dir)
-    DRIVERS_UPLOAD_FOLDER = str(_default_drivers_dir)
 
 os.makedirs(NOTICES_UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(DRIVERS_UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_ATTACHMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"}
-ALLOWED_DRIVER_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"}
 
 class NumberedCanvas(canvas.Canvas):
     """Two-pass canvas to dynamically compute and stamp total page count."""
@@ -469,6 +461,7 @@ def setup_database():
             driver_status TEXT NOT NULL DEFAULT 'OFFLINE',
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT,
+            deactivation_reason TEXT,
             FOREIGN KEY (assigned_bus_id) REFERENCES buses(id) ON DELETE SET NULL
         )
     """)
@@ -482,10 +475,8 @@ def setup_database():
         cursor.execute("ALTER TABLE drivers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
     if "created_at" not in driver_columns:
         cursor.execute("ALTER TABLE drivers ADD COLUMN created_at TEXT")
-    if "photo_filename" not in driver_columns:
-        cursor.execute("ALTER TABLE drivers ADD COLUMN photo_filename TEXT")
-    if "photo_original_name" not in driver_columns:
-        cursor.execute("ALTER TABLE drivers ADD COLUMN photo_original_name TEXT")
+    if "deactivation_reason" not in driver_columns:
+        cursor.execute("ALTER TABLE drivers ADD COLUMN deactivation_reason TEXT")
 
     # 8. DRIVER ASSIGNMENTS TABLE
     cursor.execute("""
@@ -4599,7 +4590,6 @@ def admin_drivers():
     connection = get_connection()
     query = """
         SELECT d.id, d.name, d.phone, d.assigned_bus_id, d.is_active, d.created_at, d.deactivation_reason,
-               d.photo_filename, d.photo_original_name,
                b.bus_number, b.route_name
         FROM drivers d
         LEFT JOIN buses b ON d.assigned_bus_id = b.id
@@ -4611,10 +4601,6 @@ def admin_drivers():
 
     drivers_list = []
     for r in drivers:
-        keys = r.keys() if hasattr(r, "keys") else []
-        photo_filename = r["photo_filename"] if "photo_filename" in keys else None
-        photo_original_name = r["photo_original_name"] if "photo_original_name" in keys else None
-        photo_url = f"/api/admin/driver/{r['id']}/photo" if photo_filename else None
         drivers_list.append({
             "id": r["id"],
             "name": r["name"],
@@ -4626,10 +4612,7 @@ def admin_drivers():
             "account_status": "Active",
             "assignment_status": f"Assigned to {r['bus_number']}" if r["assigned_bus_id"] and r["bus_number"] else "Unassigned",
             "created_at": r["created_at"] or "---",
-            "deactivation_reason": r["deactivation_reason"] or "---",
-            "photo_filename": photo_filename,
-            "photo_original_name": photo_original_name,
-            "photo_url": photo_url
+            "deactivation_reason": r["deactivation_reason"] or "---"
         })
 
     return jsonify({
@@ -4640,21 +4623,17 @@ def admin_drivers():
 
 @app.route("/api/admin/driver/add", methods=["POST"])
 def admin_add_driver():
-    """Admin creates driver account with optional document or photo upload."""
+    """Admin creates driver account."""
     if session.get("user_type") != "admin":
         return jsonify({"success": False, "message": "Admin login required."}), 403
 
-    if request.content_type and "multipart/form-data" in request.content_type.lower():
-        data = request.form
-    else:
-        data = request.form if request.form else (request.get_json(silent=True) or {})
-
+    data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
     phone = (data.get("phone") or data.get("mobile") or "").strip()
     password = (data.get("password") or "").strip()
     confirm_password = (data.get("confirm_password") or "").strip()
 
-    if not name or not phone or not password:
+    if not name or not phone or not password or not confirm_password:
         return jsonify({"success": False, "message": "All fields are required."}), 400
 
     clean_phone = re.sub(r"\D", "", phone)
@@ -4666,48 +4645,6 @@ def admin_add_driver():
 
     if len(password) < 6:
         return jsonify({"success": False, "message": "Password must be at least 6 characters long."}), 400
-
-    # Handle optional driver document / photo upload
-    saved_photo_filename = None
-    saved_photo_original = None
-
-    uploaded_file = None
-    if request.files:
-        uploaded_file = (
-            request.files.get("photo")
-            or request.files.get("document")
-            or request.files.get("file")
-            or request.files.get("license")
-        )
-
-    if uploaded_file and uploaded_file.filename and uploaded_file.filename.strip():
-        raw_name = uploaded_file.filename.strip()
-        _, ext = os.path.splitext(raw_name)
-        ext = ext.lower()
-        if ext not in ALLOWED_DRIVER_EXTENSIONS:
-            return jsonify({
-                "success": False,
-                "message": f"Unsupported file type '{ext}'. Allowed formats: PDF, PNG, JPG, JPEG, DOC, DOCX."
-            }), 400
-
-        # Enforce 10 MB maximum file size
-        uploaded_file.seek(0, os.SEEK_END)
-        size_bytes = uploaded_file.tell()
-        uploaded_file.seek(0)
-        if size_bytes > 10 * 1024 * 1024:
-            return jsonify({
-                "success": False,
-                "message": "Uploaded driver document/photo exceeds the 10 MB size limit."
-            }), 400
-
-        unique_prefix = uuid.uuid4().hex[:12]
-        safe_name = secure_filename(raw_name) or f"driver_doc{ext}"
-        saved_photo_filename = f"{unique_prefix}_{safe_name}"
-        saved_photo_original = raw_name[:200]
-
-        os.makedirs(DRIVERS_UPLOAD_FOLDER, exist_ok=True)
-        dest_path = os.path.join(DRIVERS_UPLOAD_FOLDER, saved_photo_filename)
-        uploaded_file.save(dest_path)
 
     connection = get_connection()
     existing = connection.execute("SELECT id, is_active FROM drivers WHERE phone = ?", (clean_phone,)).fetchone()
@@ -4721,63 +4658,24 @@ def admin_add_driver():
             connection.close()
             return jsonify({"success": False, "message": "An active driver with this mobile number already exists."}), 409
         # Reactivate previously removed record
-        if saved_photo_filename:
-            connection.execute("""
-                UPDATE drivers
-                SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
-                    driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?,
-                    photo_filename = ?, photo_original_name = ?
-                WHERE id = ?
-            """, (name, p_hash, salt, now, saved_photo_filename, saved_photo_original, existing["id"]))
-        else:
-            connection.execute("""
-                UPDATE drivers
-                SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
-                    driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?
-                WHERE id = ?
-            """, (name, p_hash, salt, now, existing["id"]))
+        connection.execute("""
+            UPDATE drivers
+            SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
+                driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?
+            WHERE id = ?
+        """, (name, p_hash, salt, now, existing["id"]))
         connection.commit()
         connection.close()
         return jsonify({"success": True, "message": f"Driver '{name}' added successfully."})
 
     connection.execute("""
-        INSERT INTO drivers (name, phone, password_hash, salt, assigned_bus_id, driver_status, is_active, created_at, photo_filename, photo_original_name)
-        VALUES (?, ?, ?, ?, NULL, 'OFFLINE', 1, ?, ?, ?)
-    """, (name, clean_phone, p_hash, salt, now, saved_photo_filename, saved_photo_original))
+        INSERT INTO drivers (name, phone, password_hash, salt, assigned_bus_id, driver_status, is_active, created_at)
+        VALUES (?, ?, ?, ?, NULL, 'OFFLINE', 1, ?)
+    """, (name, clean_phone, p_hash, salt, now))
     connection.commit()
     connection.close()
 
     return jsonify({"success": True, "message": f"Driver '{name}' added successfully."})
-
-
-@app.route("/api/admin/driver/<int:driver_id>/photo")
-def admin_get_driver_photo(driver_id):
-    """Serve driver photo or uploaded verification document to admin."""
-    if session.get("user_type") != "admin":
-        return jsonify({"success": False, "message": "Admin login required."}), 403
-
-    connection = get_connection()
-    driver = connection.execute(
-        "SELECT photo_filename, photo_original_name FROM drivers WHERE id = ?",
-        (driver_id,)
-    ).fetchone()
-    connection.close()
-
-    if not driver or not driver["photo_filename"]:
-        return jsonify({"success": False, "message": "No document or photo on file for this driver."}), 404
-
-    target_dir = os.path.abspath(DRIVERS_UPLOAD_FOLDER)
-    file_path = os.path.abspath(os.path.join(target_dir, driver["photo_filename"]))
-
-    # Prevent path traversal attacks
-    if not file_path.startswith(target_dir) or not os.path.exists(file_path):
-        return jsonify({"success": False, "message": "Driver document file not found on server."}), 404
-
-    return send_file(
-        file_path,
-        as_attachment=False,
-        download_name=driver["photo_original_name"] or driver["photo_filename"]
-    )
 
 
 @app.route("/api/admin/driver/<int:driver_id>/assign", methods=["POST"])
