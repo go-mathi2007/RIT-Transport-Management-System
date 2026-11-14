@@ -66,6 +66,72 @@ if _env_db_path and _env_db_path.strip():
 else:
     DATABASE = str(_default_db_path)
 
+# ============================================================
+# TURSO CLOUD DATABASE CONFIGURATION
+# ============================================================
+# Reads TURSO_DATABASE_URL and TURSO_AUTH_TOKEN from the
+# environment (Render env vars, .env file, or Windows registry).
+# Never logs or exposes credential values.
+
+def _load_turso_credentials():
+    """
+    Resolve TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.
+    Checks process environment first, then Windows registry (dev only).
+    Returns (url, token) or (None, None) if not configured.
+    """
+    url = os.environ.get("TURSO_DATABASE_URL", "").strip()
+    token = os.environ.get("TURSO_AUTH_TOKEN", "").strip()
+    if url and token:
+        return url, token
+    # Windows registry fallback for local development
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as _k:
+            if not url:
+                try:
+                    url = winreg.QueryValueEx(_k, "TURSO_DATABASE_URL")[0].strip()
+                except FileNotFoundError:
+                    pass
+            if not token:
+                try:
+                    token = winreg.QueryValueEx(_k, "TURSO_AUTH_TOKEN")[0].strip()
+                except FileNotFoundError:
+                    pass
+    except (ImportError, OSError):
+        pass
+    if url and token:
+        return url, token
+    return None, None
+
+_TURSO_URL, _TURSO_TOKEN = _load_turso_credentials()
+
+# DATABASE_BACKEND env var allows explicit override:
+#   "sqlite"  → always use local SQLite (even if Turso is configured)
+#   "turso"   → always use Turso (fails loudly if not configured)
+#   unset     → auto-select: Turso if credentials present, else SQLite
+_DB_BACKEND = os.environ.get("DATABASE_BACKEND", "").strip().lower()
+
+# Determine effective backend at startup
+if _DB_BACKEND == "sqlite":
+    _USE_TURSO = False
+elif _DB_BACKEND == "turso":
+    if not (_TURSO_URL and _TURSO_TOKEN):
+        raise RuntimeError(
+            "DATABASE_BACKEND=turso but TURSO_DATABASE_URL or TURSO_AUTH_TOKEN "
+            "is missing. Set both environment variables to use Turso."
+        )
+    _USE_TURSO = True
+else:
+    _USE_TURSO = bool(_TURSO_URL and _TURSO_TOKEN)
+
+if _USE_TURSO:
+    try:
+        from turso_adapter import TursoConnection
+    except ImportError as _e:
+        raise ImportError(
+            f"turso_adapter.py not found alongside app.py: {_e}"
+        ) from _e
+
 DEFAULT_CAMPUS_ARRIVAL_TIME = "07:40 AM"
 DEFAULT_RETURN_TIME = "3:50 PM"
 
@@ -283,11 +349,41 @@ def get_default_return_time():
 # ============================================================
 
 def get_connection():
-    connection = sqlite3.connect(DATABASE, timeout=30.0)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA journal_mode = WAL")
-    return connection
+    """
+    Return a database connection.
+
+    Backend selection (determined once at startup):
+    - Turso cloud (libSQL): when TURSO_DATABASE_URL + TURSO_AUTH_TOKEN are set
+      and DATABASE_BACKEND != "sqlite".
+    - Local SQLite: otherwise.
+
+    Turso differences vs SQLite:
+    - PRAGMA journal_mode = WAL  → skipped (not applicable to cloud libSQL)
+    - PRAGMA foreign_keys = ON   → skipped (Turso enforces this permanently)
+    - row_factory, fetchone, fetchall, row[key/index], lastrowid, commit,
+      rollback, close → all compatible via TursoConnection/TursoRow.
+
+    Failure policy:
+    - If Turso is configured but the connection fails, raises immediately.
+      Does NOT silently fall back to an empty SQLite database.
+    """
+    if _USE_TURSO:
+        conn = TursoConnection(_TURSO_URL, _TURSO_TOKEN, timeout=30.0)
+        # Verify the connection is live; raises RuntimeError on failure
+        try:
+            conn.execute("SELECT 1")
+        except Exception as _e:
+            raise RuntimeError(
+                f"Turso connection failed — check TURSO_DATABASE_URL and "
+                f"TURSO_AUTH_TOKEN. Error: {_e}"
+            ) from _e
+        return conn
+    else:
+        connection = sqlite3.connect(DATABASE, timeout=30.0)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA journal_mode = WAL")
+        return connection
 
 
 def get_bus_boarded_count(bus_id=None, travel_date=None, service_type=None):
@@ -375,6 +471,20 @@ def check_student_batch_lifecycle():
         app.logger.error(f"Error checking batch lifecycle: {e}")
 
 def setup_database():
+    """
+    Initialize the local SQLite database schema and apply incremental migrations.
+
+    For Turso: skipped entirely. The Turso database schema and all 1,060
+    production records were migrated in Phase 1. Running CREATE TABLE /
+    ALTER TABLE / CREATE INDEX against the populated Turso database is
+    unnecessary and would risk data loss.
+    """
+    if _USE_TURSO:
+        # Turso: schema already in place from Phase 1 migration.
+        # Only run the lifecycle check (read + conditional update — safe).
+        check_student_batch_lifecycle()
+        return
+
     connection = get_connection()
     cursor = connection.cursor()
 
