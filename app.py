@@ -9,9 +9,11 @@ import os
 import re
 import secrets
 import smtplib
+import socket
 import sys
 import time
 import uuid
+import base64
 import urllib.request
 import urllib.parse
 from email.mime.text import MIMEText
@@ -73,18 +75,27 @@ DEFAULT_RETURN_TIME = "3:50 PM"
 
 # Uploads Folder Configuration (Render Persistent Disk / Local Fallback)
 _default_uploads_dir = Path(__file__).resolve().parent / "static" / "uploads" / "notices"
+_default_drivers_dir = Path(__file__).resolve().parent / "static" / "uploads" / "drivers"
 _env_uploads_path = os.environ.get("UPLOADS_PATH")
 if _env_uploads_path and _env_uploads_path.strip():
     _custom_uploads = Path(_env_uploads_path.strip()).resolve()
     if _custom_uploads.name.lower() == "notices":
         NOTICES_UPLOAD_FOLDER = str(_custom_uploads)
+        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads.parent / "drivers")
+    elif _custom_uploads.name.lower() == "drivers":
+        NOTICES_UPLOAD_FOLDER = str(_custom_uploads.parent / "notices")
+        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads)
     else:
         NOTICES_UPLOAD_FOLDER = str(_custom_uploads / "notices")
+        DRIVERS_UPLOAD_FOLDER = str(_custom_uploads / "drivers")
 else:
     NOTICES_UPLOAD_FOLDER = str(_default_uploads_dir)
+    DRIVERS_UPLOAD_FOLDER = str(_default_drivers_dir)
 
 os.makedirs(NOTICES_UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(DRIVERS_UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_ATTACHMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"}
+ALLOWED_DRIVER_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"}
 
 class NumberedCanvas(canvas.Canvas):
     """Two-pass canvas to dynamically compute and stamp total page count."""
@@ -471,6 +482,10 @@ def setup_database():
         cursor.execute("ALTER TABLE drivers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
     if "created_at" not in driver_columns:
         cursor.execute("ALTER TABLE drivers ADD COLUMN created_at TEXT")
+    if "photo_filename" not in driver_columns:
+        cursor.execute("ALTER TABLE drivers ADD COLUMN photo_filename TEXT")
+    if "photo_original_name" not in driver_columns:
+        cursor.execute("ALTER TABLE drivers ADD COLUMN photo_original_name TEXT")
 
     # 8. DRIVER ASSIGNMENTS TABLE
     cursor.execute("""
@@ -957,38 +972,278 @@ def get_smtp_config():
     }
 
 
+def get_email_provider_config():
+    """
+    Centralized email provider resolver.
+    Prioritizes HTTPS REST APIs (Resend, Brevo, SendGrid) over port 443 which are 100% open
+    on cloud platforms like Render Free where outbound SMTP ports (25, 465, 587) are blocked.
+    Falls back to direct SMTP when configured and running in an environment with open SMTP ports.
+    """
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
+    sendgrid_key = os.environ.get("SENDGRID_API_KEY", "").strip()
+    smtp_cfg = get_smtp_config()
+
+    raw_from = (
+        os.environ.get("MAIL_DEFAULT_SENDER")
+        or os.environ.get("SMTP_FROM")
+        or (f"RIT Transport <{smtp_cfg['user']}>" if smtp_cfg["user"] else "RIT Transport <noreply@ritchennai.edu.in>")
+    ).strip()
+    if "<" not in raw_from and "@" in raw_from:
+        default_from = f"RIT Transport <{raw_from}>"
+    else:
+        default_from = raw_from or "RIT Transport <noreply@ritchennai.edu.in>"
+
+    is_render = bool(os.environ.get("RENDER"))
+
+    if resend_key:
+        provider = "RESEND"
+        is_configured = True
+    elif brevo_key:
+        provider = "BREVO"
+        is_configured = True
+    elif sendgrid_key:
+        provider = "SENDGRID"
+        is_configured = True
+    elif smtp_cfg["is_configured"]:
+        provider = "SMTP"
+        is_configured = True
+    else:
+        provider = "NONE"
+        is_configured = False
+
+    return {
+        "provider": provider,
+        "is_configured": is_configured,
+        "is_render": is_render,
+        "from": default_from,
+        "resend_key": resend_key,
+        "brevo_key": brevo_key,
+        "sendgrid_key": sendgrid_key,
+        "smtp": smtp_cfg
+    }
+
+
+def send_transactional_email(to_email, subject, text_body, html_body, to_name=None, attachment_path=None, attachment_filename=None):
+    """
+    Unified transactional email dispatcher.
+    Sends via HTTPS REST APIs (Resend, Brevo, SendGrid) on port 443 or direct SMTP.
+    Returns (success_bool, message_or_error_str, provider_name).
+    """
+    cfg = get_email_provider_config()
+    if not cfg["is_configured"]:
+        return False, "No email provider configured in environment.", "UNCONFIGURED"
+
+    provider = cfg["provider"]
+
+    # 1. Resend API (HTTPS REST)
+    if provider == "RESEND":
+        try:
+            payload = {
+                "from": cfg["from"],
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+                "text": text_body,
+            }
+            if attachment_path and os.path.exists(attachment_path):
+                with open(attachment_path, "rb") as af:
+                    payload["attachments"] = [{
+                        "filename": attachment_filename or os.path.basename(attachment_path),
+                        "content": base64.b64encode(af.read()).decode("utf-8")
+                    }]
+
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {cfg['resend_key']}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "RIT-Transport/2.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                return True, resp_data.get("id", "Sent"), "RESEND"
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8", errors="ignore")
+            app.logger.error(f"Resend HTTPS API error ({he.code}): {err_body}")
+            return False, f"Resend API error {he.code}: {err_body}", "RESEND"
+        except Exception as e:
+            app.logger.error(f"Resend request exception: {e}")
+            return False, f"Resend request failed: {e}", "RESEND"
+
+    # 2. Brevo API (HTTPS REST)
+    elif provider == "BREVO":
+        try:
+            from_name = "RIT Transport"
+            from_email = cfg["from"]
+            if "<" in from_email and ">" in from_email:
+                parts = from_email.split("<")
+                from_name = parts[0].strip() or "RIT Transport"
+                from_email = parts[1].replace(">", "").strip()
+
+            payload = {
+                "sender": {"name": from_name, "email": from_email},
+                "to": [{"email": to_email, "name": to_name or to_email}],
+                "subject": subject,
+                "htmlContent": html_body,
+                "textContent": text_body,
+            }
+            if attachment_path and os.path.exists(attachment_path):
+                with open(attachment_path, "rb") as af:
+                    payload["attachment"] = [{
+                        "name": attachment_filename or os.path.basename(attachment_path),
+                        "content": base64.b64encode(af.read()).decode("utf-8")
+                    }]
+
+            req = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "api-key": cfg["brevo_key"],
+                    "Content-Type": "application/json",
+                    "User-Agent": "RIT-Transport/2.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                return True, resp_data.get("messageId", "Sent"), "BREVO"
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8", errors="ignore")
+            app.logger.error(f"Brevo HTTPS API error ({he.code}): {err_body}")
+            return False, f"Brevo API error {he.code}: {err_body}", "BREVO"
+        except Exception as e:
+            app.logger.error(f"Brevo request exception: {e}")
+            return False, f"Brevo request failed: {e}", "BREVO"
+
+    # 3. SendGrid API (HTTPS REST)
+    elif provider == "SENDGRID":
+        try:
+            from_email = cfg["from"]
+            if "<" in from_email and ">" in from_email:
+                from_email = from_email.split("<")[1].replace(">", "").strip()
+
+            payload = {
+                "personalizations": [{"to": [{"email": to_email, "name": to_name or to_email}]}],
+                "from": {"email": from_email, "name": "RIT Transport"},
+                "subject": subject,
+                "content": [
+                    {"type": "text/plain", "value": text_body},
+                    {"type": "text/html", "value": html_body}
+                ]
+            }
+            if attachment_path and os.path.exists(attachment_path):
+                with open(attachment_path, "rb") as af:
+                    payload["attachments"] = [{
+                        "content": base64.b64encode(af.read()).decode("utf-8"),
+                        "filename": attachment_filename or os.path.basename(attachment_path),
+                        "disposition": "attachment"
+                    }]
+
+            req = urllib.request.Request(
+                "https://api.sendgrid.com/v3/mail/send",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {cfg['sendgrid_key']}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "RIT-Transport/2.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                return True, "Sent", "SENDGRID"
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8", errors="ignore")
+            app.logger.error(f"SendGrid HTTPS API error ({he.code}): {err_body}")
+            return False, f"SendGrid API error {he.code}: {err_body}", "SENDGRID"
+        except Exception as e:
+            app.logger.error(f"SendGrid request exception: {e}")
+            return False, f"SendGrid request failed: {e}", "SENDGRID"
+
+    # 4. Direct SMTP
+    elif provider == "SMTP":
+        smtp_cfg = cfg["smtp"]
+        if cfg["is_render"] and smtp_cfg["port"] in (25, 465, 587):
+            app.logger.warning("Render Free blocks outbound SMTP ports 25, 465, and 587. Email delivery may fail; configure RESEND_API_KEY or BREVO_API_KEY.")
+
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["From"] = smtp_cfg["from"]
+            msg["To"] = to_email
+            msg["Subject"] = subject
+
+            msg.attach(MIMEText(text_body, "plain", "utf-8"))
+            msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+            if attachment_path and os.path.exists(attachment_path):
+                try:
+                    with open(attachment_path, "rb") as af:
+                        part = MIMEApplication(af.read(), Name=attachment_filename or os.path.basename(attachment_path))
+                    part['Content-Disposition'] = f'attachment; filename="{attachment_filename or os.path.basename(attachment_path)}"'
+                    msg.attach(part)
+                except Exception as attach_err:
+                    app.logger.warning(f"Failed to attach file to email: {attach_err}")
+
+            if smtp_cfg["use_ssl"]:
+                server_ctx = smtplib.SMTP_SSL(smtp_cfg["host"], smtp_cfg["port"], timeout=15)
+            else:
+                server_ctx = smtplib.SMTP(smtp_cfg["host"], smtp_cfg["port"], timeout=15)
+
+            with server_ctx as server:
+                if smtp_cfg["use_tls"]:
+                    server.starttls()
+                server.login(smtp_cfg["user"], smtp_cfg["pass"])
+                server.send_message(msg)
+
+            return True, "Sent via SMTP", "SMTP"
+        except (smtplib.SMTPConnectError, socket.error, OSError, TimeoutError) as net_err:
+            if cfg["is_render"]:
+                msg_err = "Render Free blocks outbound SMTP ports (25, 465, 587). Please configure RESEND_API_KEY or BREVO_API_KEY for HTTPS email delivery."
+            else:
+                msg_err = f"SMTP connection error: {net_err}"
+            app.logger.error(msg_err)
+            return False, msg_err, "SMTP"
+        except smtplib.SMTPAuthenticationError:
+            msg_err = "SMTP authentication failed. Please verify email credentials."
+            app.logger.error(msg_err)
+            return False, msg_err, "SMTP"
+        except Exception as e:
+            app.logger.error(f"SMTP delivery error: {e}")
+            return False, f"SMTP delivery failed: {e}", "SMTP"
+
+    return False, "Unknown email provider", "UNKNOWN"
+
+
 def send_otp_notification(contact, otp):
     """
-    Sends OTP exclusively via Gmail SMTP to the user's registered email address.
+    Sends OTP exclusively via email to the user's registered address using the active email provider.
     Mobile/SMS options are completely excluded.
     Returns (success_bool, message, provider_configured_bool).
     """
-    cfg = get_smtp_config()
+    provider_cfg = get_email_provider_config()
 
-    if not cfg["is_configured"]:
-        return True, "Verification OTP generated. Gmail SMTP is not configured in .env (enter GMAIL_USER and GMAIL_APP_PASSWORD).", False
+    if not provider_cfg["is_configured"]:
+        return True, "Verification OTP generated. Email provider is not configured in .env (enter RESEND_API_KEY / BREVO_API_KEY on Render or GMAIL_USER and GMAIL_APP_PASSWORD locally).", False
 
     if not contact or "@" not in contact:
         return False, "Invalid email address for OTP delivery.", True
 
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["From"] = cfg["from"]
-        msg["To"] = contact
-        msg["Subject"] = "RIT Transport - Password Reset OTP"
+    subject = "RIT Transport - Password Reset OTP"
+    text_body = (
+        f"Hello,\n\n"
+        f"Your One-Time Password (OTP) for resetting your RIT Transport Management password is:\n\n"
+        f"    {otp}\n\n"
+        f"This OTP is valid for 10 minutes.\n\n"
+        f"If you did not request a password reset, please ignore this email or notify the RIT Transport Office immediately.\n\n"
+        f"Best regards,\n"
+        f"RIT Transport Team\n"
+        f"Rajalakshmi Institute of Technology, Chennai\n"
+    )
 
-        text_body = (
-            f"Hello,\n\n"
-            f"Your One-Time Password (OTP) for resetting your RIT Transport Management password is:\n\n"
-            f"    {otp}\n\n"
-            f"This OTP is valid for 10 minutes.\n\n"
-            f"If you did not request a password reset, please ignore this email or notify the RIT Transport Office immediately.\n\n"
-            f"Best regards,\n"
-            f"RIT Transport Team\n"
-            f"Rajalakshmi Institute of Technology, Chennai\n"
-        )
-
-        html_body = f"""<!DOCTYPE html>
+    html_body = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -1031,54 +1286,54 @@ def send_otp_notification(contact, otp):
 </body>
 </html>"""
 
-        msg.attach(MIMEText(text_body, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-        if cfg["use_ssl"]:
-            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=15) as server:
-                server.login(cfg["user"], cfg["pass"])
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as server:
-                if cfg["use_tls"]:
-                    server.starttls()
-                server.login(cfg["user"], cfg["pass"])
-                server.send_message(msg)
-
-        return True, "Verification OTP has been sent to your registered Gmail address.", True
-
-    except smtplib.SMTPAuthenticationError:
-        app.logger.error("Gmail SMTP authentication failed. Please check GMAIL_USER and GMAIL_APP_PASSWORD in .env")
-        return False, "Failed to authenticate with Gmail SMTP server. Please verify your Gmail address and 16-character App Password.", True
-    except smtplib.SMTPConnectError:
-        app.logger.error("Gmail SMTP connection failed. Unable to reach smtp.gmail.com")
-        return False, "Unable to connect to Gmail SMTP server. Please check your internet connection.", True
-    except Exception as e:
-        app.logger.error(f"Gmail SMTP delivery error: {type(e).__name__}")
-        return False, "Failed to deliver OTP email via Gmail SMTP. Please check server logs and SMTP settings.", True
+    ok, msg_or_id, provider_name = send_transactional_email(contact, subject, text_body, html_body)
+    if ok:
+        return True, "Verification OTP has been sent to your registered email address.", True
+    else:
+        return False, f"Failed to deliver OTP email: {msg_or_id}", True
 
 
-def send_notice_email_distribution(notice_id, title, message_content, priority, created_at, attachment_path=None, attachment_filename=None):
+def send_notice_email_distribution(notice_id, title, message_content, priority, created_at, attachment_path=None, attachment_filename=None, target_audience="ALL"):
     """
     Broadcast notice email to all active, registered Students and Faculty.
-    Uses existing Gmail SMTP configuration.
-    Deduplicates emails, excludes inactive/removed accounts, logs deliveries,
-    and returns a delivery summary (sent, failed, skipped).
+    Deduplicates emails, excludes inactive/removed accounts, logs deliveries in notice_email_logs,
+    and returns an accurate delivery summary (sent, failed, skipped).
     """
-    cfg = get_smtp_config()
-
     connection = get_connection()
-    # 1. Fetch active students and faculty with non-empty emails
-    rows = connection.execute("""
+
+    t_aud = (target_audience or "ALL").strip().upper()
+    if t_aud == "VISITOR":
+        summary_str = "Visitors only (0 campus emails)"
+        connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", (summary_str, notice_id))
+        connection.commit()
+        connection.close()
+        return {
+            "total_eligible": 0,
+            "sent": 0,
+            "failed": 0,
+            "skipped": 0,
+            "status": "COMPLETED",
+            "message": "Notice target audience is Visitors only; campus email distribution skipped.",
+            "summary_text": summary_str
+        }
+
+    role_filter = ("student", "faculty")
+    if t_aud == "STUDENT":
+        role_filter = ("student",)
+    elif t_aud == "FACULTY":
+        role_filter = ("faculty",)
+
+    placeholders = ",".join("?" for _ in role_filter)
+    rows = connection.execute(f"""
         SELECT DISTINCT id, name, email, role, register_number
         FROM users
-        WHERE role IN ('student', 'faculty')
+        WHERE role IN ({placeholders})
           AND is_active = 1
           AND (lifecycle_status IS NULL OR lifecycle_status = 'ACTIVE')
           AND email IS NOT NULL
           AND trim(email) != ''
         ORDER BY role, name
-    """).fetchall()
+    """, role_filter).fetchall()
 
     email_regex = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     seen_emails = set()
@@ -1102,34 +1357,36 @@ def send_notice_email_distribution(notice_id, title, message_content, priority, 
         })
 
     if not eligible_recipients:
-        summary = {
+        summary_str = "0 sent, 0 failed, 0 skipped"
+        connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", (summary_str, notice_id))
+        connection.commit()
+        connection.close()
+        return {
             "total_eligible": 0,
             "sent": 0,
             "failed": 0,
             "skipped": len(skipped_list),
             "status": "COMPLETED",
-            "message": "No active student or faculty accounts found with valid email addresses."
+            "message": "No active student or faculty accounts found with valid email addresses.",
+            "summary_text": summary_str
         }
-        connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", ("0 sent, 0 failed", notice_id))
+
+    provider_cfg = get_email_provider_config()
+    if not provider_cfg["is_configured"]:
+        summary_str = f"Email provider unconfigured (0/{len(eligible_recipients)} sent)"
+        connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", (summary_str, notice_id))
         connection.commit()
         connection.close()
-        return summary
-
-    if not cfg["is_configured"]:
-        summary = {
+        return {
             "total_eligible": len(eligible_recipients),
             "sent": 0,
             "failed": 0,
             "skipped": len(eligible_recipients) + len(skipped_list),
             "status": "UNCONFIGURED",
-            "message": "Gmail SMTP is not configured in .env (GMAIL_USER and GMAIL_APP_PASSWORD required)."
+            "message": "No email provider configured. On Render Free, configure RESEND_API_KEY or BREVO_API_KEY for HTTPS email delivery (or GMAIL_USER and GMAIL_APP_PASSWORD locally).",
+            "summary_text": summary_str
         }
-        connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", ("SMTP unconfigured", notice_id))
-        connection.commit()
-        connection.close()
-        return summary
 
-    # Prepare styling based on priority
     p_upper = (priority or "NORMAL").upper()
     if p_upper == "URGENT":
         priority_badge_html = '<span style="display:inline-block; background:#fee2e2; color:#b91c1c; font-weight:700; font-size:12px; padding:4px 12px; border-radius:9999px; letter-spacing:0.5px; border:1px solid #fca5a5;">🚨 URGENT ADVISORY</span>'
@@ -1145,54 +1402,35 @@ def send_notice_email_distribution(notice_id, title, message_content, priority, 
 
     sent_count = 0
     failed_count = 0
-    smtp_error_message = None
-
     now_ts = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
 
-    try:
-        if cfg["use_ssl"]:
-            server_ctx = smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=20)
-        else:
-            server_ctx = smtplib.SMTP(cfg["host"], cfg["port"], timeout=20)
+    escaped_title = html_escape(title)
+    escaped_message = html_escape(message_content).replace("\n", "<br>")
 
-        with server_ctx as server:
-            if cfg["use_tls"]:
-                server.starttls()
-            server.login(cfg["user"], cfg["pass"])
+    for recipient in eligible_recipients:
+        # Check idempotency
+        already_sent = connection.execute(
+            "SELECT id FROM notice_email_logs WHERE notice_id = ? AND recipient_email = ? AND status = 'SENT'",
+            (notice_id, recipient["email"])
+        ).fetchone()
+        if already_sent:
+            skipped_list.append({"name": recipient["name"], "email": recipient["email"], "reason": "Already sent"})
+            continue
 
-            for recipient in eligible_recipients:
-                # Check if already recorded as sent for this notice (idempotency)
-                already_sent = connection.execute(
-                    "SELECT id FROM notice_email_logs WHERE notice_id = ? AND recipient_email = ? AND status = 'SENT'",
-                    (notice_id, recipient["email"])
-                ).fetchone()
-                if already_sent:
-                    skipped_list.append({"name": recipient["name"], "email": recipient["email"], "reason": "Already sent"})
-                    continue
+        text_body = (
+            f"RIT TRANSPORT MANAGEMENT - OFFICIAL NOTICE\n"
+            f"====================================================\n\n"
+            f"Title: {title}\n"
+            f"Priority: {p_upper}\n"
+            f"Published Date: {created_at}\n\n"
+            f"Dear {recipient['name']} ({recipient['role'].capitalize()}),\n\n"
+            f"{message_content}\n\n"
+            f"====================================================\n"
+            f"RIT Transport Team\n"
+            f"Rajalakshmi Institute of Technology, Chennai\n"
+        )
 
-                try:
-                    msg = MIMEMultipart("alternative")
-                    msg["From"] = cfg["from"]
-                    msg["To"] = recipient["email"]
-                    msg["Subject"] = subject
-
-                    text_body = (
-                        f"RIT TRANSPORT MANAGEMENT - OFFICIAL NOTICE\n"
-                        f"====================================================\n\n"
-                        f"Title: {title}\n"
-                        f"Priority: {p_upper}\n"
-                        f"Published Date: {created_at}\n\n"
-                        f"Dear {recipient['name']} ({recipient['role'].capitalize()}),\n\n"
-                        f"{message_content}\n\n"
-                        f"====================================================\n"
-                        f"RIT Transport Team\n"
-                        f"Rajalakshmi Institute of Technology, Chennai\n"
-                    )
-
-                    escaped_title = html_escape(title)
-                    escaped_message = html_escape(message_content).replace("\n", "<br>")
-
-                    html_body = f"""<!DOCTYPE html>
+        html_body = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -1238,41 +1476,25 @@ def send_notice_email_distribution(notice_id, title, message_content, priority, 
 </body>
 </html>"""
 
-                    msg.attach(MIMEText(text_body, "plain", "utf-8"))
-                    msg.attach(MIMEText(html_body, "html", "utf-8"))
+        ok, err_or_id, prov_used = send_transactional_email(
+            recipient["email"], subject, text_body, html_body,
+            to_name=recipient["name"],
+            attachment_path=attachment_path,
+            attachment_filename=attachment_filename
+        )
 
-                    if attachment_path and os.path.exists(attachment_path):
-                        try:
-                            with open(attachment_path, "rb") as af:
-                                part = MIMEApplication(af.read(), Name=attachment_filename or os.path.basename(attachment_path))
-                            part['Content-Disposition'] = f'attachment; filename="{attachment_filename or os.path.basename(attachment_path)}"'
-                            msg.attach(part)
-                        except Exception as attach_err:
-                            app.logger.warning(f"Failed to attach file to notice email: {attach_err}")
-
-                    server.send_message(msg)
-                    sent_count += 1
-
-                    connection.execute("""
-                        INSERT OR REPLACE INTO notice_email_logs (notice_id, recipient_email, recipient_name, recipient_role, status, sent_at, error_message)
-                        VALUES (?, ?, ?, ?, 'SENT', ?, NULL)
-                    """, (notice_id, recipient["email"], recipient["name"], recipient["role"], now_ts))
-
-                except Exception as send_err:
-                    failed_count += 1
-                    connection.execute("""
-                        INSERT OR REPLACE INTO notice_email_logs (notice_id, recipient_email, recipient_name, recipient_role, status, sent_at, error_message)
-                        VALUES (?, ?, ?, ?, 'FAILED', ?, ?)
-                    """, (notice_id, recipient["email"], recipient["name"], recipient["role"], now_ts, str(send_err)))
-
-    except smtplib.SMTPAuthenticationError:
-        app.logger.error("Gmail SMTP authentication failed during notice email distribution.")
-        failed_count = len(eligible_recipients) - sent_count
-        smtp_error_message = "Gmail SMTP authentication failed. Please check GMAIL_USER and GMAIL_APP_PASSWORD in .env."
-    except Exception as e:
-        app.logger.error(f"Gmail SMTP connection/distribution error: {type(e).__name__}")
-        failed_count = len(eligible_recipients) - sent_count
-        smtp_error_message = f"SMTP connection error: {type(e).__name__}"
+        if ok:
+            sent_count += 1
+            connection.execute("""
+                INSERT OR REPLACE INTO notice_email_logs (notice_id, recipient_email, recipient_name, recipient_role, status, sent_at, error_message)
+                VALUES (?, ?, ?, ?, 'SENT', ?, NULL)
+            """, (notice_id, recipient["email"], recipient["name"], recipient["role"], now_ts))
+        else:
+            failed_count += 1
+            connection.execute("""
+                INSERT OR REPLACE INTO notice_email_logs (notice_id, recipient_email, recipient_name, recipient_role, status, sent_at, error_message)
+                VALUES (?, ?, ?, ?, 'FAILED', ?, ?)
+            """, (notice_id, recipient["email"], recipient["name"], recipient["role"], now_ts, str(err_or_id)))
 
     summary_str = f"{sent_count} sent, {failed_count} failed, {len(skipped_list)} skipped"
     connection.execute("UPDATE notices SET delivery_summary = ? WHERE id = ?", (summary_str, notice_id))
@@ -1284,8 +1506,7 @@ def send_notice_email_distribution(notice_id, title, message_content, priority, 
         "sent": sent_count,
         "failed": failed_count,
         "skipped": len(skipped_list),
-        "status": "COMPLETED" if not smtp_error_message else "FAILED",
-        "error": smtp_error_message,
+        "status": "COMPLETED" if failed_count == 0 else "PARTIAL" if sent_count > 0 else "FAILED",
         "summary_text": summary_str
     }
 
@@ -4378,6 +4599,7 @@ def admin_drivers():
     connection = get_connection()
     query = """
         SELECT d.id, d.name, d.phone, d.assigned_bus_id, d.is_active, d.created_at, d.deactivation_reason,
+               d.photo_filename, d.photo_original_name,
                b.bus_number, b.route_name
         FROM drivers d
         LEFT JOIN buses b ON d.assigned_bus_id = b.id
@@ -4387,34 +4609,46 @@ def admin_drivers():
     drivers = connection.execute(query).fetchall()
     connection.close()
 
+    drivers_list = []
+    for r in drivers:
+        keys = r.keys() if hasattr(r, "keys") else []
+        photo_filename = r["photo_filename"] if "photo_filename" in keys else None
+        photo_original_name = r["photo_original_name"] if "photo_original_name" in keys else None
+        photo_url = f"/api/admin/driver/{r['id']}/photo" if photo_filename else None
+        drivers_list.append({
+            "id": r["id"],
+            "name": r["name"],
+            "phone": r["phone"],
+            "assigned_bus_id": r["assigned_bus_id"],
+            "bus_number": r["bus_number"],
+            "route_name": r["route_name"],
+            "is_active": True,
+            "account_status": "Active",
+            "assignment_status": f"Assigned to {r['bus_number']}" if r["assigned_bus_id"] and r["bus_number"] else "Unassigned",
+            "created_at": r["created_at"] or "---",
+            "deactivation_reason": r["deactivation_reason"] or "---",
+            "photo_filename": photo_filename,
+            "photo_original_name": photo_original_name,
+            "photo_url": photo_url
+        })
+
     return jsonify({
         "success": True,
-        "drivers": [
-            {
-                "id": r["id"],
-                "name": r["name"],
-                "phone": r["phone"],
-                "assigned_bus_id": r["assigned_bus_id"],
-                "bus_number": r["bus_number"],
-                "route_name": r["route_name"],
-                "is_active": True,
-                "account_status": "Active",
-                "assignment_status": f"Assigned to {r['bus_number']}" if r["assigned_bus_id"] and r["bus_number"] else "Unassigned",
-                "created_at": r["created_at"] or "---",
-                "deactivation_reason": r["deactivation_reason"] or "---"
-            }
-            for r in drivers
-        ]
+        "drivers": drivers_list
     })
 
 
 @app.route("/api/admin/driver/add", methods=["POST"])
 def admin_add_driver():
-    """Admin creates driver account."""
+    """Admin creates driver account with optional document or photo upload."""
     if session.get("user_type") != "admin":
         return jsonify({"success": False, "message": "Admin login required."}), 403
 
-    data = request.get_json(silent=True) or request.form
+    if request.content_type and "multipart/form-data" in request.content_type.lower():
+        data = request.form
+    else:
+        data = request.form if request.form else (request.get_json(silent=True) or {})
+
     name = (data.get("name") or "").strip()
     phone = (data.get("phone") or data.get("mobile") or "").strip()
     password = (data.get("password") or "").strip()
@@ -4433,6 +4667,48 @@ def admin_add_driver():
     if len(password) < 6:
         return jsonify({"success": False, "message": "Password must be at least 6 characters long."}), 400
 
+    # Handle optional driver document / photo upload
+    saved_photo_filename = None
+    saved_photo_original = None
+
+    uploaded_file = None
+    if request.files:
+        uploaded_file = (
+            request.files.get("photo")
+            or request.files.get("document")
+            or request.files.get("file")
+            or request.files.get("license")
+        )
+
+    if uploaded_file and uploaded_file.filename and uploaded_file.filename.strip():
+        raw_name = uploaded_file.filename.strip()
+        _, ext = os.path.splitext(raw_name)
+        ext = ext.lower()
+        if ext not in ALLOWED_DRIVER_EXTENSIONS:
+            return jsonify({
+                "success": False,
+                "message": f"Unsupported file type '{ext}'. Allowed formats: PDF, PNG, JPG, JPEG, DOC, DOCX."
+            }), 400
+
+        # Enforce 10 MB maximum file size
+        uploaded_file.seek(0, os.SEEK_END)
+        size_bytes = uploaded_file.tell()
+        uploaded_file.seek(0)
+        if size_bytes > 10 * 1024 * 1024:
+            return jsonify({
+                "success": False,
+                "message": "Uploaded driver document/photo exceeds the 10 MB size limit."
+            }), 400
+
+        unique_prefix = uuid.uuid4().hex[:12]
+        safe_name = secure_filename(raw_name) or f"driver_doc{ext}"
+        saved_photo_filename = f"{unique_prefix}_{safe_name}"
+        saved_photo_original = raw_name[:200]
+
+        os.makedirs(DRIVERS_UPLOAD_FOLDER, exist_ok=True)
+        dest_path = os.path.join(DRIVERS_UPLOAD_FOLDER, saved_photo_filename)
+        uploaded_file.save(dest_path)
+
     connection = get_connection()
     existing = connection.execute("SELECT id, is_active FROM drivers WHERE phone = ?", (clean_phone,)).fetchone()
     
@@ -4445,24 +4721,63 @@ def admin_add_driver():
             connection.close()
             return jsonify({"success": False, "message": "An active driver with this mobile number already exists."}), 409
         # Reactivate previously removed record
-        connection.execute("""
-            UPDATE drivers
-            SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
-                driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?
-            WHERE id = ?
-        """, (name, p_hash, salt, now, existing["id"]))
+        if saved_photo_filename:
+            connection.execute("""
+                UPDATE drivers
+                SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
+                    driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?,
+                    photo_filename = ?, photo_original_name = ?
+                WHERE id = ?
+            """, (name, p_hash, salt, now, saved_photo_filename, saved_photo_original, existing["id"]))
+        else:
+            connection.execute("""
+                UPDATE drivers
+                SET name = ?, password_hash = ?, salt = ?, is_active = 1, assigned_bus_id = NULL,
+                    driver_status = 'OFFLINE', deactivation_reason = NULL, created_at = ?
+                WHERE id = ?
+            """, (name, p_hash, salt, now, existing["id"]))
         connection.commit()
         connection.close()
         return jsonify({"success": True, "message": f"Driver '{name}' added successfully."})
 
     connection.execute("""
-        INSERT INTO drivers (name, phone, password_hash, salt, assigned_bus_id, driver_status, is_active, created_at)
-        VALUES (?, ?, ?, ?, NULL, 'OFFLINE', 1, ?)
-    """, (name, clean_phone, p_hash, salt, now))
+        INSERT INTO drivers (name, phone, password_hash, salt, assigned_bus_id, driver_status, is_active, created_at, photo_filename, photo_original_name)
+        VALUES (?, ?, ?, ?, NULL, 'OFFLINE', 1, ?, ?, ?)
+    """, (name, clean_phone, p_hash, salt, now, saved_photo_filename, saved_photo_original))
     connection.commit()
     connection.close()
 
     return jsonify({"success": True, "message": f"Driver '{name}' added successfully."})
+
+
+@app.route("/api/admin/driver/<int:driver_id>/photo")
+def admin_get_driver_photo(driver_id):
+    """Serve driver photo or uploaded verification document to admin."""
+    if session.get("user_type") != "admin":
+        return jsonify({"success": False, "message": "Admin login required."}), 403
+
+    connection = get_connection()
+    driver = connection.execute(
+        "SELECT photo_filename, photo_original_name FROM drivers WHERE id = ?",
+        (driver_id,)
+    ).fetchone()
+    connection.close()
+
+    if not driver or not driver["photo_filename"]:
+        return jsonify({"success": False, "message": "No document or photo on file for this driver."}), 404
+
+    target_dir = os.path.abspath(DRIVERS_UPLOAD_FOLDER)
+    file_path = os.path.abspath(os.path.join(target_dir, driver["photo_filename"]))
+
+    # Prevent path traversal attacks
+    if not file_path.startswith(target_dir) or not os.path.exists(file_path):
+        return jsonify({"success": False, "message": "Driver document file not found on server."}), 404
+
+    return send_file(
+        file_path,
+        as_attachment=False,
+        download_name=driver["photo_original_name"] or driver["photo_filename"]
+    )
 
 
 @app.route("/api/admin/driver/<int:driver_id>/assign", methods=["POST"])
@@ -5670,7 +5985,7 @@ def admin_save_notice():
 
     # Accepts both JSON and multipart form data
     title = (request.form.get("title") or (request.json.get("title") if request.is_json else "") or "").strip()
-    message = (request.form.get("message") or (request.json.get("message") if request.is_json else "") or "").strip()
+    message = (request.form.get("message") or request.form.get("content") or (request.json.get("message") or request.json.get("content") if request.is_json else "") or "").strip()
     priority = (request.form.get("priority") or (request.json.get("priority") if request.is_json else "") or "NORMAL").strip().upper()
     target_audience = (request.form.get("target_audience") or (request.json.get("target_audience") if request.is_json else "") or "ALL").strip().upper()
 
@@ -5748,16 +6063,17 @@ def admin_save_notice():
     delivery_summary = send_notice_email_distribution(
         notice_id, title, message, priority, now,
         attachment_path=attachment_full_path,
-        attachment_filename=attachment_orig_name
+        attachment_filename=attachment_orig_name,
+        target_audience=target_audience
     )
 
     status = delivery_summary.get("status")
     if status == "COMPLETED":
-        msg = f"Notice published successfully with attachment. Email delivery: {delivery_summary['sent']} sent, {delivery_summary['failed']} failed, {delivery_summary['skipped']} skipped."
+        msg = f"Notice published successfully. Email delivery: {delivery_summary['sent']} sent, {delivery_summary['failed']} failed, {delivery_summary['skipped']} skipped."
     elif status == "UNCONFIGURED":
-        msg = "Notice published to database with attachment. (Email distribution skipped: Gmail SMTP is not configured in .env)."
+        msg = f"Notice published to database. (Email distribution skipped: {delivery_summary.get('message')})"
     else:
-        msg = f"Notice published to database, but email distribution failed: {delivery_summary.get('error', 'SMTP delivery error')}."
+        msg = f"Notice published to database. Email delivery: {delivery_summary.get('summary_text', 'Delivery error')}."
 
     return jsonify({
         "success": True,

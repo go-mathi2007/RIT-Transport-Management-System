@@ -1085,9 +1085,9 @@
     <div class="modal-card">
         <button class="modal-close" onclick="closeModal('addDriverModal')">&times;</button>
         <h3 style="margin-bottom:6px; color:var(--dark);">Add New Driver</h3>
-        <p style="font-size:12px; color:var(--gray-500); margin-bottom:18px;">Create driver login credentials.</p>
+        <p style="font-size:12px; color:var(--gray-500); margin-bottom:18px;">Create driver login credentials and optional verification document.</p>
 
-        <form id="addDriverForm" onsubmit="submitAddDriver(event)">
+        <form id="addDriverForm" onsubmit="submitAddDriver(event)" enctype="multipart/form-data">
             <div class="form-row">
                 <label>Driver Full Name *</label>
                 <input type="text" id="addDriverName" required placeholder="Example: Ramesh K">
@@ -1104,7 +1104,12 @@
                 <label>Confirm Password *</label>
                 <input type="password" id="addDriverConfirmPass" minlength="6" required placeholder="Re-enter password">
             </div>
-            <button type="submit" class="btn-top" style="width:100%; margin-top:10px;">Create Driver Account</button>
+            <div class="form-row">
+                <label>Driver Document / Photo (Optional)</label>
+                <input type="file" id="addDriverPhoto" name="photo" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" style="padding:6px; font-size:12px; background:var(--light); border:1px solid var(--border); border-radius:6px; width:100%;">
+                <small style="display:block; font-size:11px; color:var(--gray-500); margin-top:3px;">Allowed: PDF, PNG, JPG, JPEG, DOC, DOCX (Max 10MB)</small>
+            </div>
+            <button type="submit" id="submitAddDriverBtn" class="btn-top" style="width:100%; margin-top:10px;">Create Driver Account</button>
         </form>
     </div>
 </div>
@@ -1607,7 +1612,10 @@ async function loadDriversRoster() {
             }
             tbody.innerHTML = allDriversList.map(d => `
                 <tr>
-                    <td><strong>${escapeHtml(d.name)}</strong></td>
+                    <td>
+                        <strong>${escapeHtml(d.name)}</strong>
+                        ${d.photo_url ? `<br><a href="${d.photo_url}" target="_blank" style="display:inline-block; margin-top:3px; font-size:11px; color:var(--primary); font-weight:600; text-decoration:underline;">📄 Document / Photo</a>` : ''}
+                    </td>
                     <td>${escapeHtml(d.phone)}</td>
                     <td>${d.assigned_bus_id ? `<strong style="color:var(--primary);">🚌 ${escapeHtml(d.bus_number)} (${escapeHtml(d.route_name)})</strong>` : '<span style="color:var(--gray-500);">Unassigned</span>'}</td>
                     <td><span class="badge ${d.is_active ? 'badge-active' : 'badge-inactive'}">${escapeHtml(d.account_status)}</span></td>
@@ -1621,6 +1629,8 @@ async function loadDriversRoster() {
                     </td>
                 </tr>
             `).join("");
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--danger);">${escapeHtml(data.message || 'Unable to load drivers.')}</td></tr>`;
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--danger);">Unable to load drivers.</td></tr>';
@@ -1634,21 +1644,48 @@ function openAddDriverModal() {
 
 async function submitAddDriver(e) {
     e.preventDefault();
+    const btn = document.getElementById("submitAddDriverBtn");
     const name = document.getElementById("addDriverName").value.trim();
     const phone = document.getElementById("addDriverPhone").value.trim();
     const password = document.getElementById("addDriverPass").value;
     const confirm_password = document.getElementById("addDriverConfirmPass").value;
+    const photoInput = document.getElementById("addDriverPhoto");
 
     if (password !== confirm_password) {
         alert("Passwords do not match.");
         return;
     }
 
+    if (password.length < 6) {
+        alert("Password must be at least 6 characters long.");
+        return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+        alert("Please enter a valid 10-digit mobile number.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("phone", cleanPhone);
+    formData.append("password", password);
+    formData.append("confirm_password", confirm_password);
+    if (photoInput && photoInput.files && photoInput.files.length > 0) {
+        formData.append("photo", photoInput.files[0]);
+    }
+
+    const originalBtnText = btn ? btn.innerHTML : "Create Driver Account";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "Creating Driver...";
+    }
+
     try {
         const res = await fetch("/api/admin/driver/add", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, phone, password, confirm_password })
+            body: formData
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -1659,7 +1696,12 @@ async function submitAddDriver(e) {
             alert(data.message || "Failed to create driver.");
         }
     } catch (err) {
-        alert("Network error.");
+        alert("Network error. Please check your connection.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnText;
+        }
     }
 }
 
