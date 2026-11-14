@@ -751,6 +751,8 @@ def setup_database():
         cursor.execute("ALTER TABLE notices ADD COLUMN attachment_type TEXT")
     if "target_audience" not in cols:
         cursor.execute("ALTER TABLE notices ADD COLUMN target_audience TEXT DEFAULT 'ALL'")
+    if "attachment_data" not in cols:
+        cursor.execute("ALTER TABLE notices ADD COLUMN attachment_data BLOB")
 
     # 16. NOTICE EMAIL LOGS
     cursor.execute("""
@@ -6050,6 +6052,7 @@ def admin_save_notice():
     attachment_orig_name = None
     attachment_mime_type = None
     attachment_full_path = None
+    attachment_data = None   # binary content stored in DB for persistent serving
 
     uploaded_file = request.files.get("attachment")
     if uploaded_file and uploaded_file.filename and uploaded_file.filename.strip():
@@ -6071,12 +6074,20 @@ def admin_save_notice():
                 "message": "File exceeds the 10 MB maximum upload size limit."
             }), 400
 
+        # Read file bytes first (for DB storage and local disk save)
+        attachment_data = uploaded_file.read()
+        uploaded_file.seek(0)
+
         unique_id = uuid.uuid4().hex[:12]
         attachment_saved_name = f"{unique_id}_{orig_name}"
         attachment_orig_name = uploaded_file.filename.strip()
         attachment_mime_type = uploaded_file.mimetype or ext
         attachment_full_path = os.path.join(NOTICES_UPLOAD_FOLDER, attachment_saved_name)
-        uploaded_file.save(attachment_full_path)
+        # Save to local filesystem (works on localhost; may be ephemeral on Render)
+        try:
+            uploaded_file.save(attachment_full_path)
+        except Exception as _e:
+            app.logger.warning(f"Could not save notice attachment to disk: {_e}")
 
     connection = get_connection()
 
@@ -6104,10 +6115,11 @@ def admin_save_notice():
     cursor.execute("""
         INSERT INTO notices (
             title, message, priority, is_active, created_at, delivery_summary,
-            attachment_filename, attachment_original_name, attachment_type, target_audience
+            attachment_filename, attachment_original_name, attachment_type, target_audience,
+            attachment_data
         )
-        VALUES (?, ?, ?, 1, ?, 'PENDING', ?, ?, ?, ?)
-    """, (title, message, priority, now, attachment_saved_name, attachment_orig_name, attachment_mime_type, target_audience))
+        VALUES (?, ?, ?, 1, ?, 'PENDING', ?, ?, ?, ?, ?)
+    """, (title, message, priority, now, attachment_saved_name, attachment_orig_name, attachment_mime_type, target_audience, attachment_data))
     notice_id = cursor.lastrowid
     connection.commit()
     connection.close()
@@ -6139,10 +6151,17 @@ def admin_save_notice():
 
 @app.route("/api/notices/<int:notice_id>/attachment")
 def get_notice_attachment(notice_id):
-    """Public / user download of notice file attachment."""
+    """
+    Download a notice file attachment.
+    Strategy (in priority order):
+      1. Serve from local filesystem (fast; works on localhost and Render if disk is persistent).
+      2. Fall back to attachment_data BLOB stored in the database (works on ephemeral Render).
+      3. Return 404 if neither is available.
+    """
     connection = get_connection()
     row = connection.execute(
-        "SELECT attachment_filename, attachment_original_name FROM notices WHERE id = ?",
+        "SELECT attachment_filename, attachment_original_name, attachment_type, attachment_data "
+        "FROM notices WHERE id = ?",
         (notice_id,)
     ).fetchone()
     connection.close()
@@ -6150,12 +6169,32 @@ def get_notice_attachment(notice_id):
     if not row or not row["attachment_filename"]:
         return jsonify({"success": False, "message": "Attachment not found."}), 404
 
-    return send_from_directory(
-        NOTICES_UPLOAD_FOLDER,
-        row["attachment_filename"],
-        as_attachment=True,
-        download_name=row["attachment_original_name"] or row["attachment_filename"]
-    )
+    download_name = row["attachment_original_name"] or row["attachment_filename"]
+    mime_type = row["attachment_type"] or "application/octet-stream"
+
+    # 1. Try local filesystem first
+    fpath = os.path.join(NOTICES_UPLOAD_FOLDER, row["attachment_filename"])
+    if os.path.exists(fpath):
+        return send_from_directory(
+            NOTICES_UPLOAD_FOLDER,
+            row["attachment_filename"],
+            as_attachment=True,
+            download_name=download_name
+        )
+
+    # 2. Fall back to BLOB stored in database
+    blob = row["attachment_data"]
+    if blob:
+        blob_bytes = bytes(blob) if not isinstance(blob, (bytes, bytearray)) else blob
+        return send_file(
+            io.BytesIO(blob_bytes),
+            mimetype=mime_type,
+            as_attachment=True,
+            download_name=download_name
+        )
+
+    # 3. File gone and no BLOB stored (pre-existing notice uploaded before this fix)
+    return jsonify({"success": False, "message": "Attachment file is no longer available. Please ask the admin to re-upload this notice."}), 404
 
 
 @app.route("/api/admin/notice/<int:notice_id>", methods=["DELETE"])
