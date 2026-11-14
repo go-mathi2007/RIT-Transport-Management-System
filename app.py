@@ -682,6 +682,19 @@ def setup_database():
         )
     """)
 
+    # Auto-seed public transit fleet if buses table is empty (fresh production deployment)
+    bus_count = cursor.execute("SELECT COUNT(1) FROM buses").fetchone()[0]
+    if bus_count == 0:
+        try:
+            from seed_data import seed_data
+            from add_evening_routes import add_evening_routes
+            app.logger.info("Fresh database detected (0 buses). Initializing official public bus fleet from seed_data...")
+            seed_data(connection=connection)
+            add_evening_routes(connection=connection)
+            app.logger.info("Successfully initialized official public bus fleet (52 buses and 602 stops).")
+        except Exception as e:
+            app.logger.error(f"Failed to auto-seed bus fleet: {e}")
+
     # Populate default configurations for all buses
     now_str = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
     all_buses = cursor.execute("SELECT id FROM buses").fetchall()

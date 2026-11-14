@@ -1,6 +1,9 @@
+import os
+from pathlib import Path
 import sqlite3
 
-DATABASE = "busmate.db"
+_default_db = Path(__file__).resolve().parent / "busmate.db"
+DATABASE = os.environ.get("DATABASE_PATH", str(_default_db))
 
 
 def add_evening_stops(cursor, bus_number, stops):
@@ -18,6 +21,12 @@ def add_evening_stops(cursor, bus_number, stops):
 
     bus_id = result[0]
 
+    # Delete existing evening stops for idempotency
+    cursor.execute(
+        "DELETE FROM stops WHERE bus_id = ? AND direction = 'EVENING'",
+        (bus_id,)
+    )
+
     for order, (stop_name, stop_time) in enumerate(stops, start=1):
 
         cursor.execute(
@@ -30,9 +39,12 @@ def add_evening_stops(cursor, bus_number, stops):
         )
 
 
-def add_evening_routes():
-
-    connection = sqlite3.connect(DATABASE)
+def add_evening_routes(connection=None, db_path=None):
+    close_when_done = False
+    if connection is None:
+        target = db_path or os.environ.get("DATABASE_PATH") or DATABASE
+        connection = sqlite3.connect(str(target))
+        close_when_done = True
     cursor = connection.cursor()
 
     # R01 - Ennore
@@ -104,8 +116,9 @@ def add_evening_routes():
     add_evening_stops(cursor, "R07", r07)
     add_evening_stops(cursor, "R11", r11)
 
-    connection.commit()
-    connection.close()
+    if close_when_done:
+        connection.commit()
+        connection.close()
 
     print("RIT evening routes added successfully!")
 

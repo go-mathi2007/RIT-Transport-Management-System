@@ -1,10 +1,14 @@
+import os
+from pathlib import Path
 import sqlite3
 
-DATABASE = "busmate.db"
+_default_db = Path(__file__).resolve().parent / "busmate.db"
+DATABASE = os.environ.get("DATABASE_PATH", str(_default_db))
 
 
-def get_connection():
-    return sqlite3.connect(DATABASE)
+def get_connection(db_path=None):
+    target = db_path or os.environ.get("DATABASE_PATH") or DATABASE
+    return sqlite3.connect(str(target))
 
 
 def normalize_existing_bus_numbers(cursor):
@@ -98,8 +102,11 @@ def add_route(cursor, bus_number, route_name, stops):
         """, (bus_id, stop_name, stop_time, order))
 
 
-def seed_data():
-    connection = get_connection()
+def seed_data(connection=None, db_path=None):
+    close_when_done = False
+    if connection is None:
+        connection = get_connection(db_path)
+        close_when_done = True
     cursor = connection.cursor()
 
     try:
@@ -815,9 +822,11 @@ def seed_data():
             ('Aravind Hospital', '7:30 AM'),
             ('RIT Campus', '7:40 AM'),
         ])
-        connection.commit()
+        if close_when_done:
+            connection.commit()
     finally:
-        connection.close()
+        if close_when_done:
+            connection.close()
 
     print("52 RIT bus routes and morning stops loaded successfully!")
 

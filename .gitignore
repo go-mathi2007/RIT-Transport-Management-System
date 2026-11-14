@@ -25,6 +25,7 @@ __pycache__/
 *.sqlite
 *.sqlite3
 *.bak
+*.bak*
 *.bak_*
 *.bak.*
 
