@@ -25,6 +25,8 @@ __pycache__/
 *.sqlite
 *.sqlite3
 *.bak
+*.bak_*
+*.bak.*
 
 # Temporary files & scratch testing directory
 scratch/

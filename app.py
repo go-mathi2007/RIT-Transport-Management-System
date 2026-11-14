@@ -55,7 +55,14 @@ except ImportError:
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "rit-transport-secret-key-2026")
 
-DATABASE = str(Path(__file__).resolve().parent / "busmate.db")
+# Database Path Configuration (Render Persistent Disk / Local Fallback)
+_default_db_path = Path(__file__).resolve().parent / "busmate.db"
+_env_db_path = os.environ.get("DATABASE_PATH")
+if _env_db_path and _env_db_path.strip():
+    DATABASE = str(Path(_env_db_path.strip()).resolve())
+    os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
+else:
+    DATABASE = str(_default_db_path)
 
 DEFAULT_CAMPUS_ARRIVAL_TIME = "07:40 AM"
 DEFAULT_RETURN_TIME = "3:50 PM"
@@ -64,7 +71,18 @@ DEFAULT_RETURN_TIME = "3:50 PM"
 # REPORTLAB NUMBERED CANVAS & ATTACHMENT CONFIG
 # ============================================================
 
-NOTICES_UPLOAD_FOLDER = os.path.join(Path(__file__).resolve().parent, "static", "uploads", "notices")
+# Uploads Folder Configuration (Render Persistent Disk / Local Fallback)
+_default_uploads_dir = Path(__file__).resolve().parent / "static" / "uploads" / "notices"
+_env_uploads_path = os.environ.get("UPLOADS_PATH")
+if _env_uploads_path and _env_uploads_path.strip():
+    _custom_uploads = Path(_env_uploads_path.strip()).resolve()
+    if _custom_uploads.name.lower() == "notices":
+        NOTICES_UPLOAD_FOLDER = str(_custom_uploads)
+    else:
+        NOTICES_UPLOAD_FOLDER = str(_custom_uploads / "notices")
+else:
+    NOTICES_UPLOAD_FOLDER = str(_default_uploads_dir)
+
 os.makedirs(NOTICES_UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_ATTACHMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"}
 
@@ -6236,8 +6254,9 @@ if __name__ == "__main__":
     print("• Student Map  : http://10.127.97.246:5000/live-map?bus=R01")
     print("=" * 65 + "\n")
 
+    port = int(os.environ.get("PORT", 5000))
     app.run(
         host="0.0.0.0",
-        port=5000,
+        port=port,
         debug=True
     )
