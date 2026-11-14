@@ -527,10 +527,11 @@
                         <th>Email</th>
                         <th>Mobile</th>
                         <th>Boarding Point</th>
+                        <th style="text-align:center; width:110px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="busMembersTableBody">
-                    <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--gray-500);">Please select a bus from the dropdown above.</td></tr>
+                    <tr><td colspan="10" style="text-align:center; padding:30px; color:var(--gray-500);">Please select a bus from the dropdown above.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1509,12 +1510,12 @@ async function loadBusMembersData() {
     const countBadge = document.getElementById("busMemberTotalBadge");
 
     if (!busId) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--gray-500);">Please select a bus.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:var(--gray-500);">Please select a bus.</td></tr>';
         countBadge.textContent = "Total Members: 0";
         return;
     }
 
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px;">Loading bus passengers...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">Loading bus passengers...</td></tr>';
 
     try {
         const res = await fetch(`/api/admin/bus-members?bus_id=${busId}`, { cache: "no-store" });
@@ -1536,11 +1537,11 @@ async function loadBusMembersData() {
 
             applyMemberFilters();
         } else {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--gray-500);">${data.message || 'No registered members found for this bus.'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:var(--gray-500);">${data.message || 'No registered members found for this bus.'}</td></tr>`;
             countBadge.textContent = "Total Members: 0";
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--danger);">Error loading bus members.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:var(--danger);">Error loading bus members.</td></tr>';
     }
 }
 
@@ -1571,7 +1572,7 @@ function applyMemberFilters() {
 function renderBusMembersTable(members) {
     const tbody = document.getElementById("busMembersTableBody");
     if (!members.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--gray-500);">No passengers match the current filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:var(--gray-500);">No passengers match the current filters.</td></tr>';
         return;
     }
 
@@ -1586,8 +1587,58 @@ function renderBusMembersTable(members) {
             <td>${escapeHtml(m.email)}</td>
             <td>${escapeHtml(m.mobile)}</td>
             <td><strong>📍 ${escapeHtml(m.boarding_point)}</strong></td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button type="button" class="btn-action btn-danger-action" id="btnRemoveMember_${m.id}" onclick="confirmRemoveBusMember(${m.id}, '${escapeHtml(m.name)}', '${escapeHtml(m.register_number || m.role)}')" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; font-size:12px; font-weight:700;">
+                    🗑️ Remove
+                </button>
+            </td>
         </tr>
     `).join("");
+}
+
+let isRemovingMember = false;
+
+async function confirmRemoveBusMember(memberId, memberName, regNo) {
+    if (isRemovingMember) return;
+
+    const displayInfo = regNo && regNo !== '---' ? ` (${regNo})` : '';
+    if (!confirm(`Are you sure you want to remove member '${memberName}'${displayInfo} from this bus?\n\nThis will remove the passenger from this bus roster while preserving their account, login credentials, and attendance history.`)) {
+        return;
+    }
+
+    isRemovingMember = true;
+    const btn = document.getElementById(`btnRemoveMember_${memberId}`);
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Removing...';
+        btn.style.opacity = '0.6';
+    }
+
+    try {
+        const res = await fetch(`/api/admin/bus-member/${memberId}/remove`, { method: "POST" });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAdminAlert(data.message, "success");
+            await loadBusMembersData();
+        } else {
+            alert(data.message || "Failed to remove member from bus.");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+            }
+        }
+    } catch (e) {
+        alert("Network error while removing member. Please check your connection.");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            btn.style.opacity = '1';
+        }
+    } finally {
+        isRemovingMember = false;
+    }
 }
 
 // =========================================================

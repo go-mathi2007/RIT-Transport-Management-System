@@ -4211,6 +4211,51 @@ def admin_bus_members():
     })
 
 
+@app.route("/api/admin/bus-member/<int:member_id>/remove", methods=["POST"])
+@app.route("/api/admin/bus/<int:bus_id>/member/<int:member_id>/remove", methods=["POST"])
+@app.route("/api/admin/member/<int:member_id>/remove-from-bus", methods=["POST"])
+def admin_remove_bus_member(member_id, bus_id=None):
+    """
+    Remove a member from their assigned bus roster without deactivating their
+    account, revoking login credentials, or altering attendance history.
+    """
+    if session.get("user_type") != "admin":
+        return jsonify({"success": False, "message": "Admin login required."}), 403
+
+    connection = get_connection()
+    member = connection.execute("""
+        SELECT id, name, role, bus_id, boarding_point_id
+        FROM users
+        WHERE id = ?
+    """, (member_id,)).fetchone()
+    if not member:
+        connection.close()
+        return jsonify({"success": False, "message": "Member not found."}), 404
+
+    target_bus_id = member["bus_id"] or bus_id
+    bus_label = "the bus"
+    if target_bus_id:
+        b = connection.execute("SELECT bus_number, route_name FROM buses WHERE id = ?", (target_bus_id,)).fetchone()
+        if b:
+            bus_label = f"Bus {b['bus_number']} ({b['route_name']})"
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    connection.execute("""
+        UPDATE users
+        SET bus_id = NULL,
+            boarding_point_id = NULL,
+            updated_at = ?
+        WHERE id = ?
+    """, (now_str, member_id))
+    connection.commit()
+    connection.close()
+
+    return jsonify({
+        "success": True,
+        "message": f"Member '{member['name']}' removed from {bus_label} successfully."
+    })
+
+
 @app.route("/api/admin/member/<int:member_id>/deactivate", methods=["POST"])
 def admin_deactivate_member(member_id):
     """

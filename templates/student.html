@@ -411,6 +411,30 @@
             </div>
         </details>
 
+        <!-- =================================================
+             7. CAMPUS NOTICES & ANNOUNCEMENTS (FEATURE 3 / PHASE 27)
+        ================================================== -->
+        <details class="portal-box" name="studentPortal">
+            <summary>
+                <span class="box-icon">📢</span>
+                <span class="box-title">Transit Notices</span>
+                <span class="box-subtitle">Official announcements & transit updates</span>
+            </summary>
+
+            <div class="box-content">
+                <h3>📢 Official Campus Transit Notices</h3>
+                <p>Public announcements, service updates, and campus transit guidelines.</p>
+
+                <button class="primary-btn full-btn" onclick="loadStudentNotices()" style="margin-bottom:16px;">
+                    🔄 Refresh Notices
+                </button>
+
+                <div id="studentNoticesList" class="route-list">
+                    <div style="text-align:center; padding:20px; color:#64748b;">Loading notices...</div>
+                </div>
+            </div>
+        </details>
+
     </div>
 
 </main>
@@ -780,6 +804,7 @@ document.addEventListener('DOMContentLoaded', function () {
     populateLiveTrackingDropdown();
     loadUserProfile();
     loadInAppNotifications();
+    loadStudentNotices();
     const grid = document.querySelector('.portal-grid');
     if (!grid) return;
     const boxes = Array.from(grid.querySelectorAll(':scope > .portal-box'));
@@ -808,10 +833,67 @@ document.addEventListener('DOMContentLoaded', function () {
             if (heading.includes('morning') && typeof loadMorningBuses === 'function') loadMorningBuses();
             if (heading.includes('bus routes') && typeof loadRoutesWithStops === 'function') loadRoutesWithStops();
             if (heading.includes('return bus') && typeof loadReturnBuses === 'function') loadReturnBuses();
+            if (heading.includes('notice') && typeof loadStudentNotices === 'function') loadStudentNotices();
             window.scrollTo({top:0, behavior:'smooth'});
         });
     });
 });
+
+// ==========================================
+// CAMPUS NOTICES & ANNOUNCEMENTS (FEATURE 3 / PHASE 27)
+// ==========================================
+async function loadStudentNotices() {
+    const container = document.getElementById("studentNoticesList");
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Loading notices...</div>';
+    try {
+        const res = await fetch("/api/notices", { cache: "no-store" });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.notices) && data.notices.length > 0) {
+            container.innerHTML = data.notices.map(n => {
+                let badgeColor = "#0284c7";
+                let badgeBg = "#e0f2fe";
+                if (n.priority === "URGENT") {
+                    badgeColor = "#b91c1c";
+                    badgeBg = "#fee2e2";
+                } else if (n.priority === "HIGH") {
+                    badgeColor = "#b45309";
+                    badgeBg = "#fef3c7";
+                }
+                const attachmentHtml = n.attachment_url ? `
+                    <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">📎</span>
+                        <a href="${escapeHtml(n.attachment_url)}" target="_blank" download style="color:#075fce; font-weight:700; text-decoration:none; font-size:13px;">
+                            Download Attachment: ${escapeHtml(n.attachment_original_name || "Document")}
+                        </a>
+                    </div>
+                ` : "";
+
+                return `
+                    <div class="route-card" style="border-left: 4px solid ${badgeColor};">
+                        <div class="route-card-header">
+                            <div>
+                                <h3 style="font-size:16px; margin-bottom:4px;">${escapeHtml(n.title)}</h3>
+                                <div style="font-size:12px; color:#64748b;">📅 ${escapeHtml(n.created_at)}</div>
+                            </div>
+                            <span class="time-badge" style="background:${badgeBg}; color:${badgeColor}; font-weight:700;">
+                                ${escapeHtml(n.priority || "NORMAL")}
+                            </span>
+                        </div>
+                        <div class="route-details">
+                            <p style="white-space:pre-line; color:#334155; line-height:1.5;">${escapeHtml(n.message)}</p>
+                            ${attachmentHtml}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        } else {
+            container.innerHTML = '<div style="text-align:center; padding:25px; color:#64748b;">No active transit notices at this time.</div>';
+        }
+    } catch (e) {
+        container.innerHTML = '<div style="text-align:center; padding:25px; color:#b91c1c;">Unable to load notices.</div>';
+    }
+}
 
 // ==========================================
 // PHASE 2: SCAN BUS QR & ATTENDANCE
