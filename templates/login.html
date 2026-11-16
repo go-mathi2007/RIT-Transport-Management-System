@@ -501,6 +501,13 @@
         </div>
 
         <!-- NOTIFICATION ALERTS -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert-box alert-error" style="display:block;">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <div id="authAlert" class="alert-box"></div>
 
         <!-- ==============================================

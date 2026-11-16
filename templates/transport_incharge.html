@@ -260,6 +260,25 @@
     <!-- TOP ALERT BANNER -->
     <div id="inchargeGlobalAlert" class="alert-box" style="display:none; margin-bottom:16px;"></div>
 
+    <!-- DAILY ACTIVITY DATE CONTROLS -->
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 18px; margin-bottom:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05); flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:20px;">📅</span>
+            <div>
+                <strong style="font-size:14px; color:#0f172a;">Fleet Activity Date</strong>
+                <p style="margin:2px 0 0; font-size:12px; color:#64748b;">Monitoring operations, attendance, delays, and emergency alerts for the selected day.</p>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn-action" onclick="stepInchargeDate(-1)" style="padding:6px 10px; font-size:12px;" title="Previous day">◀ Prev Day</button>
+            <input type="date" id="inchargeDateInput" onchange="onInchargeDateChanged()" style="padding:6px 10px; font-size:13px; font-weight:600; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; color:#1e293b;">
+            <button type="button" class="btn-action" onclick="stepInchargeDate(1)" style="padding:6px 10px; font-size:12px;" title="Next day">Next Day ▶</button>
+            <button type="button" class="btn-action btn-ack" onclick="setInchargeDateToday()" style="padding:6px 12px; font-size:12px; font-weight:700;">Today</button>
+            <button type="button" class="btn-action" onclick="setInchargeDateAll()" style="padding:6px 12px; font-size:12px;" title="View all historical activities">All Dates</button>
+            <span id="inchargeActiveDateBadge" class="badge badge-live" style="padding:6px 10px; font-size:12px;">Viewing Today</span>
+        </div>
+    </div>
+
     <!-- METRICS GRID -->
     <div class="metrics-grid">
         <div class="metric-card">
@@ -611,9 +630,93 @@ function escapeHTML(str) {
         .replace(/'/g, '&#039;');
 }
 
+let currentInchargeDate = "";
+
+function getFormattedToday() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function initInchargeDatePicker() {
+    if (!currentInchargeDate) {
+        currentInchargeDate = getFormattedToday();
+    }
+    const input = document.getElementById("inchargeDateInput");
+    if (input && !input.value && currentInchargeDate !== "ALL") {
+        input.value = currentInchargeDate;
+    }
+    updateInchargeDateBadge();
+}
+
+function updateInchargeDateBadge() {
+    const badge = document.getElementById("inchargeActiveDateBadge");
+    if (!badge) return;
+    const today = getFormattedToday();
+    if (currentInchargeDate === "ALL") {
+        badge.className = "badge badge-offline";
+        badge.textContent = "Viewing: All Dates";
+    } else if (currentInchargeDate === today) {
+        badge.className = "badge badge-live";
+        badge.textContent = `Viewing: Today (${currentInchargeDate})`;
+    } else {
+        badge.className = "badge badge-late";
+        badge.textContent = `Viewing: ${currentInchargeDate}`;
+    }
+}
+
+function onInchargeDateChanged() {
+    const input = document.getElementById("inchargeDateInput");
+    if (!input || !input.value) return;
+    currentInchargeDate = input.value;
+    updateInchargeDateBadge();
+    refreshAllInchargePanes();
+}
+
+function setInchargeDateToday() {
+    currentInchargeDate = getFormattedToday();
+    const input = document.getElementById("inchargeDateInput");
+    if (input) input.value = currentInchargeDate;
+    updateInchargeDateBadge();
+    refreshAllInchargePanes();
+}
+
+function setInchargeDateAll() {
+    currentInchargeDate = "ALL";
+    const input = document.getElementById("inchargeDateInput");
+    if (input) input.value = "";
+    updateInchargeDateBadge();
+    refreshAllInchargePanes();
+}
+
+function stepInchargeDate(deltaDays) {
+    let base = currentInchargeDate && currentInchargeDate !== "ALL" ? new Date(currentInchargeDate + "T00:00:00") : new Date();
+    base.setDate(base.getDate() + deltaDays);
+    const yyyy = base.getFullYear();
+    const mm = String(base.getMonth() + 1).padStart(2, '0');
+    const dd = String(base.getDate()).padStart(2, '0');
+    currentInchargeDate = `${yyyy}-${mm}-${dd}`;
+    const input = document.getElementById("inchargeDateInput");
+    if (input) input.value = currentInchargeDate;
+    updateInchargeDateBadge();
+    refreshAllInchargePanes();
+}
+
+function refreshAllInchargePanes() {
+    loadInchargeSummary(true);
+    loadAllBusStatus();
+    loadSeatAvailability();
+    loadDelayReports();
+    loadEmergencyAlerts();
+}
+
 async function loadInchargeSummary(manual = false) {
+    initInchargeDatePicker();
     try {
-        const res = await fetch('/api/incharge/dashboard-summary');
+        const query = currentInchargeDate ? `?date=${encodeURIComponent(currentInchargeDate)}` : '';
+        const res = await fetch(`/api/incharge/dashboard-summary${query}`);
         const data = await res.json();
         if (data.success && data.metrics) {
             const m = data.metrics;
@@ -659,8 +762,10 @@ async function loadInchargeSummary(manual = false) {
 }
 
 async function loadAllBusStatus() {
+    initInchargeDatePicker();
     try {
-        const res = await fetch('/api/incharge/all-bus-status');
+        const query = currentInchargeDate ? `?date=${encodeURIComponent(currentInchargeDate)}` : '';
+        const res = await fetch(`/api/incharge/all-bus-status${query}`);
         const data = await res.json();
         if (data.success && data.buses) {
             allBusesData = data.buses;
@@ -805,8 +910,10 @@ async function trackSelectedBus() {
 }
 
 async function loadSeatAvailability() {
+    initInchargeDatePicker();
     try {
-        const res = await fetch('/api/buses/seat-availability');
+        const query = currentInchargeDate ? `?date=${encodeURIComponent(currentInchargeDate)}` : '';
+        const res = await fetch(`/api/buses/seat-availability${query}`);
         const data = await res.json();
         if (data.success && data.buses) {
             const tbody = document.getElementById('seatAvailabilityTableBody');
@@ -847,8 +954,10 @@ async function loadSeatAvailability() {
 }
 
 async function loadDelayReports() {
+    initInchargeDatePicker();
     try {
-        const res = await fetch('/api/delay-reports');
+        const query = currentInchargeDate ? `?date=${encodeURIComponent(currentInchargeDate)}` : '';
+        const res = await fetch(`/api/delay-reports${query}`);
         const data = await res.json();
         if (data.success && data.reports) {
             const tbody = document.getElementById('delayAlertsTableBody');
@@ -899,8 +1008,10 @@ async function updateDelayStatus(reportId, newStatus) {
 }
 
 async function loadEmergencyAlerts() {
+    initInchargeDatePicker();
     try {
-        const res = await fetch('/api/emergency-alerts');
+        const query = currentInchargeDate ? `?date=${encodeURIComponent(currentInchargeDate)}` : '';
+        const res = await fetch(`/api/emergency-alerts${query}`);
         const data = await res.json();
         if (data.success && data.alerts) {
             const tbody = document.getElementById('emergencyAlertsTableBody');
@@ -1010,6 +1121,7 @@ function enablePushNotifications() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initInchargeDatePicker();
     loadInchargeSummary();
     loadAllBusStatus();
     loadNotifications();

@@ -12,6 +12,8 @@ import smtplib
 import socket
 import sys
 import time
+import threading
+from zoneinfo import ZoneInfo
 import uuid
 import base64
 import urllib.request
@@ -420,38 +422,64 @@ def get_bus_boarded_count(bus_id=None, travel_date=None, service_type=None):
 # ============================================================
 
 
+def normalize_date_param(date_raw):
+    """
+    Normalizes date input from frontend (YYYY-MM-DD or DD-MM-YYYY)
+    into standard DD-MM-YYYY string used in database timestamps.
+    Returns None if date_raw is empty, or 'ALL' if date_raw is 'ALL'.
+    """
+    if not date_raw:
+        return None
+    s = str(date_raw).strip()
+    if s.upper() in ("ALL", "ALL DATES", "ANY"):
+        return "ALL"
+    parts = s.split("-")
+    if len(parts) == 3:
+        if len(parts[0]) == 4:  # YYYY-MM-DD
+            return f"{parts[2].zfill(2)}-{parts[1].zfill(2)}-{parts[0]}"
+        elif len(parts[2]) == 4:  # DD-MM-YYYY
+            return f"{parts[0].zfill(2)}-{parts[1].zfill(2)}-{parts[2]}"
+    return s
+
+
 def check_student_batch_lifecycle():
     """
     Automatic batch completion / graduation lifecycle.
     Rules:
-    - ONLY applies to students (role = 'student'). Faculty accounts are NEVER affected.
-    - Active student batches (2026–2029, 2025–2028, 2024–2028, 2023–2027, 2022–2026) are NEVER marked as graduated.
-    - Missing, blank, or unparseable batches are NEVER marked as graduated.
-    - Only students whose batch end year is strictly in the past (prior to 2026) are marked as graduated.
+    - ONLY applies to students (role = 'student'). Faculty, Admin, Drivers, and Transport Incharge are NEVER affected.
+    - Reads actual academic batch (e.g. '2025-2029') from the database.
+    - Accounts remain active throughout their valid academic period (until 31 December of the batch end year).
+    - For batch 2025-2029, automatically deactivates after 31 December 2029 (effective 1 January 2030).
+    - Uses Asia/Kolkata timezone.
+    - Idempotent: repeated execution does not create duplicate changes or damage records.
+    - Preserves all historical records, attendance, cancellations, and user information.
+    - Records automatic deactivation date and reason.
+    - Unassigns deactivated student from active bus rosters.
     """
     try:
         connection = get_connection()
         students = connection.execute("""
             SELECT id, academic_year, lifecycle_status, is_active
             FROM users
-            WHERE role = 'student' AND (lifecycle_status = 'ACTIVE' OR lifecycle_status IS NULL)
+            WHERE role = 'student' AND is_active = 1 AND (lifecycle_status = 'ACTIVE' OR lifecycle_status IS NULL)
         """).fetchall()
 
-        active_cohorts = {"2026–2029", "2025–2028", "2024–2028", "2023–2027", "2022–2026"}
-        now_str = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
+        now_kolkata = get_kolkata_now()
+        current_year = now_kolkata.year
+        now_str = now_kolkata.strftime("%d-%m-%Y %I:%M:%S %p")
         graduated = []
 
         for s in students:
             batch = (s["academic_year"] or "").strip()
-            if not batch or batch in active_cohorts:
+            if not batch:
                 continue
 
-            # Match 4-digit start and 4-digit end year with dash/en-dash
+            # Match 4-digit start and 4-digit end year with dash/en-dash/em-dash
             m = re.search(r"(\d{4})\s*[\u2013\u2014\-]\s*(\d{4})", batch)
             if m:
                 end_year = int(m.group(2))
-                # Only batches whose end year is strictly prior to 2026 are graduated
-                if end_year < 2026:
+                # Deactivate only after 31 December of the batch end year (i.e. when current_year > end_year)
+                if current_year > end_year:
                     graduated.append((s["id"], batch))
 
         for uid, batch in graduated:
@@ -460,7 +488,9 @@ def check_student_batch_lifecycle():
                 SET lifecycle_status = 'GRADUATED',
                     is_active = 0,
                     deactivation_reason = ?,
-                    deactivated_at = ?
+                    deactivated_at = ?,
+                    bus_id = NULL,
+                    boarding_point_id = NULL
                 WHERE id = ?
             """, (f"Batch {batch} completed (Graduated)", now_str, uid))
 
@@ -469,6 +499,22 @@ def check_student_batch_lifecycle():
         connection.close()
     except Exception as e:
         app.logger.error(f"Error checking batch lifecycle: {e}")
+
+
+def _start_lifecycle_daemon():
+    """Starts a safe background daemon thread to run batch lifecycle check hourly."""
+    def _worker():
+        while True:
+            try:
+                check_student_batch_lifecycle()
+            except Exception:
+                pass
+            time.sleep(3600)  # Safe hourly check
+    t = threading.Thread(target=_worker, daemon=True, name="BatchLifecycleDaemon")
+    t.start()
+
+
+_start_lifecycle_daemon()
 
 def setup_database():
     """
@@ -1995,14 +2041,41 @@ def transport_incharge_login():
 @app.before_request
 def check_session_integrity():
     """
-    Ensure active sessions for Transport Incharges are immediately invalidated
-    if the account was removed or deactivated by Administrator.
+    Ensure active sessions for Students, Faculty, and Transport Incharges are immediately invalidated
+    if the account was deactivated or graduated by Administrator or batch lifecycle.
     """
-    if session.get("user_type") == "transport_incharge":
+    user_type = session.get("user_type")
+    user_id = session.get("user_id")
+
+    if user_type in ("student", "faculty"):
+        if request.endpoint in ("static", "login_page", "auth_login", "student_login", "faculty_login", "logout"):
+            return None
+        if not user_id:
+            session.clear()
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "message": "Session expired or invalid. Please log in again."}), 401
+            return redirect(url_for("login_page"))
+
+        conn = get_connection()
+        user = conn.execute("""
+            SELECT id, is_active, lifecycle_status
+            FROM users
+            WHERE id = ?
+        """, (user_id,)).fetchone()
+        conn.close()
+
+        if not user or user["is_active"] != 1 or user["lifecycle_status"] in ("DEACTIVATED", "GRADUATED"):
+            session.clear()
+            msg = "Your account has been deactivated. Please contact the Transport Administration."
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "message": msg}), 401
+            flash(msg, "danger")
+            return redirect(url_for("login_page"))
+
+    elif user_type == "transport_incharge":
         # Allow static assets and login/logout endpoints
         if request.endpoint in ("static", "transport_incharge_login", "logout"):
             return None
-        user_id = session.get("user_id")
         if not user_id:
             session.clear()
             if request.path.startswith("/api/"):
@@ -2277,13 +2350,15 @@ def incharge_all_bus_status():
     """
     All-Bus Status visibility for Transport Incharge and Admin.
     Every active Incharge sees all campus buses without any bus assignment filtering.
+    Supports ?date=DD-MM-YYYY (or YYYY-MM-DD or ALL). Defaults to today in Asia/Kolkata.
     """
     user_type = session.get("user_type")
     if user_type not in ["transport_incharge", "admin"]:
         return jsonify({"success": False, "message": "Unauthorized access."}), 403
 
     conn = get_connection()
-    today_str = get_today_date_str()
+    date_param = normalize_date_param(request.args.get("date"))
+    filter_date = date_param if (date_param and date_param != "ALL") else get_today_date_str()
     now_dt = get_kolkata_now()
 
     buses = conn.execute("""
@@ -2305,10 +2380,10 @@ def incharge_all_bus_status():
     for b in buses:
         bus_id = b["id"]
 
-        # Boarding counts (centralized, valid registered passengers only)
-        boarded_today = get_bus_boarded_count(bus_id, today_str)
-        morning_boarded = get_bus_boarded_count(bus_id, today_str, "MORNING")
-        return_boarded = get_bus_boarded_count(bus_id, today_str, "RETURN")
+        # Boarding counts (centralized, valid registered passengers only) for selected date
+        boarded_today = get_bus_boarded_count(bus_id, filter_date)
+        morning_boarded = get_bus_boarded_count(bus_id, filter_date, "MORNING")
+        return_boarded = get_bus_boarded_count(bus_id, filter_date, "RETURN")
 
         cap = b["capacity"]
         is_full = boarded_today >= cap
@@ -2319,20 +2394,30 @@ def incharge_all_bus_status():
         tracking_status = "LIVE TRACKING" if is_tracking else "NOT SHARING GPS"
         running_status = b["bus_status"] if b["bus_status"] else ("ON_ROUTE" if is_tracking else "NOT_STARTED")
 
-        # 3. Emergency status
-        emergency = conn.execute("""
+        # 3. Emergency status for selected date
+        em_query = """
             SELECT id, emergency_type, status FROM emergency_alerts
             WHERE bus_id = ? AND status IN ('PENDING', 'ACKNOWLEDGED')
-            ORDER BY id DESC LIMIT 1
-        """, (bus_id,)).fetchone()
+        """
+        em_params = [bus_id]
+        if date_param != "ALL":
+            em_query += " AND reported_at LIKE ? || '%'"
+            em_params.append(filter_date)
+        em_query += " ORDER BY id DESC LIMIT 1"
+        emergency = conn.execute(em_query, em_params).fetchone()
         emergency_status = f"EMERGENCY ({emergency['emergency_type']})" if emergency else "NORMAL"
 
-        # 4. Delay status
-        delay_rep = conn.execute("""
+        # 4. Delay status for selected date
+        dr_query = """
             SELECT id, delay_reason, expected_delay, status FROM delay_reports
             WHERE bus_id = ? AND status IN ('REPORTED', 'UNDER_REVIEW')
-            ORDER BY id DESC LIMIT 1
-        """, (bus_id,)).fetchone()
+        """
+        dr_params = [bus_id]
+        if date_param != "ALL":
+            dr_query += " AND reported_at LIKE ? || '%'"
+            dr_params.append(filter_date)
+        dr_query += " ORDER BY id DESC LIMIT 1"
+        delay_rep = conn.execute(dr_query, dr_params).fetchone()
 
         scheduled_str = b["scheduled_arrival_time"]
         estimated_str = "Unavailable"
@@ -2391,7 +2476,7 @@ def incharge_all_bus_status():
     return jsonify({
         "success": True,
         "buses": result,
-        "date": today_str,
+        "date": filter_date if date_param != "ALL" else "ALL",
         "total_buses": len(result),
         "scope": "ALL_CAMPUS_BUSES"
     })
@@ -2401,14 +2486,16 @@ def incharge_all_bus_status():
 def incharge_dashboard_summary():
     """
     Statistics for Transport Incharge dashboard overview.
-    Represents campus-wide fleet metrics across ALL buses.
+    Represents campus-wide fleet metrics across ALL buses filtered by date.
+    Supports ?date=DD-MM-YYYY (or YYYY-MM-DD or ALL). Defaults to today in Asia/Kolkata.
     """
     user_type = session.get("user_type")
     if user_type not in ["transport_incharge", "admin"]:
         return jsonify({"success": False, "message": "Unauthorized access."}), 403
 
     conn = get_connection()
-    today_str = get_today_date_str()
+    date_param = normalize_date_param(request.args.get("date"))
+    filter_date = date_param if (date_param and date_param != "ALL") else get_today_date_str()
 
     total_buses = conn.execute("SELECT COUNT(*) as c FROM buses").fetchone()["c"]
     active_buses = conn.execute("SELECT COUNT(*) as c FROM morning_bus_config WHERE is_active = 1").fetchone()["c"]
@@ -2417,12 +2504,14 @@ def incharge_dashboard_summary():
     tracking_buses = conn.execute("SELECT COUNT(*) as c FROM bus_locations WHERE is_active = 1 AND latitude IS NOT NULL").fetchone()["c"]
     not_tracking_buses = max(0, total_buses - tracking_buses)
 
-    delayed_buses = conn.execute("""
-        SELECT COUNT(DISTINCT bus_id) as c FROM delay_reports
-        WHERE status IN ('REPORTED', 'UNDER_REVIEW')
-    """).fetchone()["c"]
+    delayed_query = "SELECT COUNT(DISTINCT bus_id) as c FROM delay_reports WHERE status IN ('REPORTED', 'UNDER_REVIEW')"
+    delayed_params = []
+    if date_param != "ALL":
+        delayed_query += " AND reported_at LIKE ? || '%'"
+        delayed_params.append(filter_date)
+    delayed_buses = conn.execute(delayed_query, delayed_params).fetchone()["c"]
 
-    # Full buses: count buses where total boarded today >= capacity
+    # Full buses: count buses where total boarded >= capacity for selected date
     full_buses_rows = conn.execute("""
         SELECT b.id, COALESCE(b.capacity, 50) as capacity, COUNT(qa.id) as boarded
         FROM buses b
@@ -2430,33 +2519,49 @@ def incharge_dashboard_summary():
         JOIN users u ON qa.user_id = u.id
         GROUP BY b.id
         HAVING boarded >= capacity
-    """, (today_str,)).fetchall()
+    """, (filter_date,)).fetchall()
     full_buses = len(full_buses_rows)
 
     active_drivers = conn.execute("SELECT COUNT(*) as c FROM drivers WHERE is_active = 1 AND assigned_bus_id IS NOT NULL").fetchone()["c"]
-    total_boarded_today = get_bus_boarded_count(None, today_str)
-    morning_boarded_today = get_bus_boarded_count(None, today_str, "MORNING")
-    return_boarded_today = get_bus_boarded_count(None, today_str, "RETURN")
-    pending_sos_count = conn.execute("SELECT COUNT(*) as c FROM emergency_alerts WHERE status = 'PENDING'").fetchone()["c"]
+    total_boarded_today = get_bus_boarded_count(None, filter_date)
+    morning_boarded_today = get_bus_boarded_count(None, filter_date, "MORNING")
+    return_boarded_today = get_bus_boarded_count(None, filter_date, "RETURN")
 
-    # Global emergency alerts (last 10)
-    global_emergencies = conn.execute("""
+    sos_query = "SELECT COUNT(*) as c FROM emergency_alerts WHERE status = 'PENDING'"
+    sos_params = []
+    if date_param != "ALL":
+        sos_query += " AND reported_at LIKE ? || '%'"
+        sos_params.append(filter_date)
+    pending_sos_count = conn.execute(sos_query, sos_params).fetchone()["c"]
+
+    # Global emergency alerts for selected date
+    em_sql = """
         SELECT ea.id, ea.emergency_type, ea.reported_at, ea.status,
                b.bus_number, b.route_name, d.name as driver_name
         FROM emergency_alerts ea
         JOIN buses b ON ea.bus_id = b.id
         JOIN drivers d ON ea.driver_id = d.id
-        ORDER BY ea.id DESC LIMIT 10
-    """).fetchall()
+    """
+    em_p = []
+    if date_param != "ALL":
+        em_sql += " WHERE ea.reported_at LIKE ? || '%'"
+        em_p.append(filter_date)
+    em_sql += " ORDER BY ea.id DESC LIMIT 20"
+    global_emergencies = conn.execute(em_sql, em_p).fetchall()
 
-    # Global delays (last 10)
-    global_delays = conn.execute("""
+    # Global delays for selected date
+    dr_sql = """
         SELECT dr.id, dr.delay_reason, dr.expected_delay, dr.reported_at, dr.status,
                b.bus_number, b.route_name
         FROM delay_reports dr
         JOIN buses b ON dr.bus_id = b.id
-        ORDER BY dr.id DESC LIMIT 10
-    """).fetchall()
+    """
+    dr_p = []
+    if date_param != "ALL":
+        dr_sql += " WHERE dr.reported_at LIKE ? || '%'"
+        dr_p.append(filter_date)
+    dr_sql += " ORDER BY dr.id DESC LIMIT 20"
+    global_delays = conn.execute(dr_sql, dr_p).fetchall()
 
     conn.close()
 
@@ -2478,7 +2583,7 @@ def incharge_dashboard_summary():
         },
         "global_emergencies": [dict(e) for e in global_emergencies],
         "global_delays": [dict(d) for d in global_delays],
-        "date": today_str
+        "date": filter_date if date_param != "ALL" else "ALL"
     })
 
 
@@ -3008,7 +3113,8 @@ def get_attendance_reports():
         return jsonify({"success": False, "message": "Detailed passenger attendance access restricted to Admin and Driver."}), 403
 
     conn = get_connection()
-    today_str = get_today_date_str()
+    date_param = normalize_date_param(request.args.get("date"))
+    today_str = date_param if (date_param and date_param != "ALL") else get_today_date_str()
 
     permitted_bus_ids = None
     bus_capacity = 50
@@ -3106,7 +3212,8 @@ def buses_seat_availability():
     Clearly labels boarded count as total_boarded_today.
     """
     conn = get_connection()
-    today_str = get_today_date_str()
+    date_param = normalize_date_param(request.args.get("date"))
+    today_str = date_param if (date_param and date_param != "ALL") else get_today_date_str()
 
     buses = conn.execute("""
         SELECT id, bus_number, route_name, COALESCE(capacity, 50) as capacity
@@ -3312,13 +3419,16 @@ def driver_report_delay():
 
 @app.route("/api/delay-reports", methods=["GET"])
 def get_delay_reports():
-    """Returns delay reports. Accessible to Admin and Transport Incharge."""
+    """Returns delay reports. Accessible to Admin and Transport Incharge. Filtered by date."""
     user_type = session.get("user_type")
     if user_type not in ["admin", "transport_incharge"]:
         return jsonify({"success": False, "message": "Unauthorized."}), 403
 
     conn = get_connection()
-    reports = conn.execute("""
+    date_param = normalize_date_param(request.args.get("date"))
+    filter_date = date_param if (date_param and date_param != "ALL") else get_today_date_str()
+
+    query = """
         SELECT dr.id, dr.delay_reason, dr.expected_delay, dr.notes, dr.latitude, dr.longitude,
                dr.reported_at, dr.status, dr.resolved_at,
                b.id as bus_id, b.bus_number, b.route_name,
@@ -3327,8 +3437,14 @@ def get_delay_reports():
         FROM delay_reports dr
         JOIN buses b ON dr.bus_id = b.id
         JOIN drivers d ON dr.driver_id = d.id
-        ORDER BY dr.id DESC LIMIT 50
-    """).fetchall()
+    """
+    params = []
+    if date_param != "ALL":
+        query += " WHERE dr.reported_at LIKE ? || '%'"
+        params.append(filter_date)
+    query += " ORDER BY dr.id DESC LIMIT 50"
+
+    reports = conn.execute(query, params).fetchall()
     conn.close()
 
     result = []
@@ -3340,7 +3456,12 @@ def get_delay_reports():
             d["driver_phone"] = None
         result.append(d)
 
-    return jsonify({"success": True, "reports": result})
+    return jsonify({
+        "success": True,
+        "reports": result,
+        "date": filter_date if date_param != "ALL" else "ALL",
+        "total_count": len(result)
+    })
 
 
 @app.route("/api/delay-reports/<int:report_id>/status", methods=["POST"])
@@ -3470,13 +3591,16 @@ def driver_emergency_sos_cancel():
 
 @app.route("/api/emergency-alerts", methods=["GET"])
 def get_emergency_alerts():
-    """Emergency alerts list for Admin and Transport Incharge."""
+    """Emergency alerts list for Admin and Transport Incharge. Filtered by date."""
     user_type = session.get("user_type")
     if user_type not in ["admin", "transport_incharge"]:
         return jsonify({"success": False, "message": "Unauthorized."}), 403
 
     conn = get_connection()
-    alerts = conn.execute("""
+    date_param = normalize_date_param(request.args.get("date"))
+    filter_date = date_param if (date_param and date_param != "ALL") else get_today_date_str()
+
+    query = """
         SELECT ea.id, ea.emergency_type, ea.latitude, ea.longitude, ea.reported_at,
                ea.status, ea.notes, ea.acknowledged_by, ea.acknowledged_at, ea.resolved_at,
                b.id as bus_id, b.bus_number, b.route_name,
@@ -3484,8 +3608,14 @@ def get_emergency_alerts():
         FROM emergency_alerts ea
         JOIN buses b ON ea.bus_id = b.id
         JOIN drivers d ON ea.driver_id = d.id
-        ORDER BY ea.id DESC LIMIT 50
-    """).fetchall()
+    """
+    params = []
+    if date_param != "ALL":
+        query += " WHERE ea.reported_at LIKE ? || '%'"
+        params.append(filter_date)
+    query += " ORDER BY ea.id DESC LIMIT 50"
+
+    alerts = conn.execute(query, params).fetchall()
     conn.close()
 
     result = []
@@ -3496,7 +3626,12 @@ def get_emergency_alerts():
             d["driver_phone"] = None
         result.append(d)
 
-    return jsonify({"success": True, "alerts": result})
+    return jsonify({
+        "success": True,
+        "alerts": result,
+        "date": filter_date if date_param != "ALL" else "ALL",
+        "total_count": len(result)
+    })
 
 
 @app.route("/api/emergency-alerts/<int:alert_id>/status", methods=["POST"])
@@ -3887,16 +4022,10 @@ def auth_login():
         return jsonify({"success": False, "message": "Invalid credentials. Please check your password."}), 401
 
     # 2. VERIFY STATUS & LIFECYCLE (ONLY AFTER CREDENTIALS CONFIRMED)
-    if user["role"] == "student" and user["lifecycle_status"] == "GRADUATED":
+    if not user["is_active"] or user["lifecycle_status"] in ("DEACTIVATED", "GRADUATED"):
         return jsonify({
             "success": False,
-            "message": f"Your account has been archived: {user['deactivation_reason'] or 'Academic batch completed (Graduated)'}. Contact transport office for alumnus access."
-        }), 403
-
-    if not user["is_active"] or user["lifecycle_status"] == "DEACTIVATED":
-        return jsonify({
-            "success": False,
-            "message": f"Account deactivated: {user['deactivation_reason'] or 'Access revoked by administrator. Please contact transport office.'}"
+            "message": "Your account has been deactivated. Please contact the Transport Administration."
         }), 403
 
     session.clear()
@@ -4323,70 +4452,30 @@ def admin_bus_members():
     })
 
 
+@app.route("/api/admin/bus-member/<int:member_id>/deactivate", methods=["POST"])
+@app.route("/api/admin/member/<int:member_id>/deactivate", methods=["POST"])
 @app.route("/api/admin/bus-member/<int:member_id>/remove", methods=["POST"])
 @app.route("/api/admin/bus/<int:bus_id>/member/<int:member_id>/remove", methods=["POST"])
 @app.route("/api/admin/member/<int:member_id>/remove-from-bus", methods=["POST"])
-def admin_remove_bus_member(member_id, bus_id=None):
+def admin_deactivate_bus_member(member_id, bus_id=None):
     """
-    Remove a member from their assigned bus roster without deactivating their
-    account, revoking login credentials, or altering attendance history.
-    """
-    if session.get("user_type") != "admin":
-        return jsonify({"success": False, "message": "Admin login required."}), 403
-
-    connection = get_connection()
-    member = connection.execute("""
-        SELECT id, name, role, bus_id, boarding_point_id
-        FROM users
-        WHERE id = ?
-    """, (member_id,)).fetchone()
-    if not member:
-        connection.close()
-        return jsonify({"success": False, "message": "Member not found."}), 404
-
-    target_bus_id = member["bus_id"] or bus_id
-    bus_label = "the bus"
-    if target_bus_id:
-        b = connection.execute("SELECT bus_number, route_name FROM buses WHERE id = ?", (target_bus_id,)).fetchone()
-        if b:
-            bus_label = f"Bus {b['bus_number']} ({b['route_name']})"
-
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    connection.execute("""
-        UPDATE users
-        SET bus_id = NULL,
-            boarding_point_id = NULL,
-            updated_at = ?
-        WHERE id = ?
-    """, (now_str, member_id))
-    connection.commit()
-    connection.close()
-
-    return jsonify({
-        "success": True,
-        "message": f"Member '{member['name']}' removed from {bus_label} successfully."
-    })
-
-
-@app.route("/api/admin/member/<int:member_id>/deactivate", methods=["POST"])
-def admin_deactivate_member(member_id):
-    """
-    Requirement #8: Admin deactivates/removes member with documented reason.
-    Revokes login access and unassigns from active bus rosters while preserving history.
+    Requirement #1: Admin deactivates bus member and removes from active bus roster.
+    Immediately sets is_active = 0, lifecycle_status = 'DEACTIVATED', unassigns bus_id and boarding_point_id.
+    Preserves all historical records, user id, attendance, cancellations, and activity history.
     """
     if session.get("user_type") != "admin":
         return jsonify({"success": False, "message": "Admin login required."}), 403
 
     data = request.get_json(silent=True) or request.form
-    reason = (data.get("reason") or "Deactivated by Administrator").strip()
+    reason = (data.get("reason") or "Deactivated by Administrator from Bus Members").strip()
 
     connection = get_connection()
-    member = connection.execute("SELECT id, name, role FROM users WHERE id = ?", (member_id,)).fetchone()
+    member = connection.execute("SELECT id, name, role, bus_id FROM users WHERE id = ?", (member_id,)).fetchone()
     if not member:
         connection.close()
         return jsonify({"success": False, "message": "Member not found."}), 404
 
-    now_str = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
+    now_str = get_kolkata_now().strftime("%d-%m-%Y %I:%M:%S %p")
     connection.execute("""
         UPDATE users
         SET is_active = 0,
@@ -4402,7 +4491,7 @@ def admin_deactivate_member(member_id):
 
     return jsonify({
         "success": True,
-        "message": f"Member '{member['name']}' deactivated and removed from active transport rosters."
+        "message": f"Member '{member['name']}' has been deactivated and removed from active bus rosters."
     })
 
 
@@ -6585,13 +6674,19 @@ def admin_export_return_buses_pdf():
 @app.route("/api/admin/attendance/cancellations")
 def admin_get_attendance_cancellations():
     """
-    Feature 5: Returns audit log of cancelled boardings and bus switches.
+    Feature 5 & Targeted Update: Returns audit log of cancelled boardings and bus switches.
+    Defaults to today's date in Asia/Kolkata timezone.
+    Supports ?date=DD-MM-YYYY (or YYYY-MM-DD or ALL) and optional ?type=ALL/CANCEL/SWITCH filter.
     """
     if session.get("user_type") != "admin":
         return jsonify({"success": False, "message": "Admin login required."}), 403
 
+    date_param = normalize_date_param(request.args.get("date"))
+    filter_date = date_param if (date_param and date_param != "ALL") else get_today_date_str()
+    type_filter = (request.args.get("type") or "ALL").strip().upper()
+
     conn = get_connection()
-    logs = conn.execute("""
+    query = """
         SELECT c.id, c.user_id, c.bus_id, c.service_type, c.travel_date,
                c.boarding_time, c.cancelled_at, c.reason,
                u.name as user_name, u.register_number, u.role as user_role,
@@ -6599,13 +6694,27 @@ def admin_get_attendance_cancellations():
         FROM attendance_cancellation_logs c
         LEFT JOIN users u ON c.user_id = u.id
         LEFT JOIN buses b ON c.bus_id = b.id
-        ORDER BY c.id DESC
-        LIMIT 200
-    """).fetchall()
+        WHERE 1=1
+    """
+    params = []
+    if date_param != "ALL":
+        query += " AND (c.travel_date = ? OR c.cancelled_at LIKE ? || '%')"
+        params.extend([filter_date, filter_date])
+
+    if type_filter == "SWITCH":
+        query += " AND UPPER(c.reason) LIKE '%SWITCH%'"
+    elif type_filter == "CANCEL":
+        query += " AND UPPER(c.reason) NOT LIKE '%SWITCH%'"
+
+    query += " ORDER BY c.id DESC LIMIT 200"
+
+    logs = conn.execute(query, params).fetchall()
     conn.close()
 
     return jsonify({
         "success": True,
+        "date": filter_date if date_param != "ALL" else "ALL",
+        "total_count": len(logs),
         "cancellations": [
             {
                 "id": r["id"],
